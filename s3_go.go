@@ -43,7 +43,7 @@ func main() {
         }
 
     } else{
-        log.Fatal("Must direction of transfer: up or down")
+        log.Fatal("specify direction of transfer: up or down")
     }
 
 }
