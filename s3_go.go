@@ -4,11 +4,11 @@ import (
     "github.com/rlmcpherson/s3/s3util"
     "os"
     "io"
-    //"flag"
     "fmt"
     "strings"
     "github.com/jessevdk/go-flags"
     "net/http"
+    "log"
 
 )
 
@@ -33,9 +33,7 @@ func main() {
         if err != nil {
             fmt.Fprintln(os.Stderr, err)
         }
-    }
-
-    if opts.Up{
+    }    else if opts.Up{
         r, _ := os.Open(opts.FilePath)
         w, err := upload(opts.Url, opts.Header)
         io.Copy(w,r)
@@ -44,14 +42,17 @@ func main() {
             fmt.Fprintln(os.Stderr, err)
         }
 
+    } else{
+        log.Fatal("Must direction of transfer: up or down")
     }
+
 }
 
 var opts struct {
 
     //AccessKey string `short:"k" long:"accesskey" description:"AWS Access Key" required:"true"`
     //SecretKey string `short:"s" long:"secretkey" description:"AWS Secret Key" required:"true"`
-    Action Action `short:"a" long:"action" description:"direction of data transfer" required:"true"`
+    //Action Action `short:"a" long:"action" description:"direction of data transfer" required:"true"`
     Up bool `long:"up" description:"Upload to S3"`
     Down bool `long:"down" description:"Download from S3"`
     FilePath string `short:"f" long:"file_path" description:"canonical path to file" required:"true"`
@@ -59,16 +60,6 @@ var opts struct {
     Header http.Header `short:"h" long:"headers" description:"HTTP headers"` 
 
 }
-
-type Action int
-
-const (
-   Up  Action = iota
-   Down
-
-)
-
-
 
 //func open(opts struct) (io.ReadCloser, error){
 //    return os.Open(opts.FilePath)
