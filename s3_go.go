@@ -25,19 +25,13 @@ func main() {
     s3util.DefaultConfig.AccessKey = os.Getenv("S3_ACCESS_KEY")
     s3util.DefaultConfig.SecretKey = os.Getenv("S3_SECRET_KEY")
 
-    if opts.Down{
-        r, err := download(opts.Url)
-        w, _ := os.Create(opts.FilePath)
-        io.Copy(w, r)
-        w.Close()
+    if opts.Down && !opts.Up{
+        err := download(opts.Url)
         if err != nil {
             fmt.Fprintln(os.Stderr, err)
         }
     }    else if opts.Up{
-        r, _ := os.Open(opts.FilePath)
-        w, err := upload(opts.Url, opts.Header)
-        io.Copy(w,r)
-        w.Close()
+        err := upload(opts.Url, opts.Header)
         if err != nil {
             fmt.Fprintln(os.Stderr, err)
         }
@@ -52,7 +46,6 @@ var opts struct {
 
     //AccessKey string `short:"k" long:"accesskey" description:"AWS Access Key" required:"true"`
     //SecretKey string `short:"s" long:"secretkey" description:"AWS Secret Key" required:"true"`
-    //Action Action `short:"a" long:"action" description:"direction of data transfer" required:"true"`
     Up bool `long:"up" description:"Upload to S3"`
     Down bool `long:"down" description:"Download from S3"`
     FilePath string `short:"f" long:"file_path" description:"canonical path to file" required:"true"`
@@ -67,10 +60,34 @@ var opts struct {
 
 
 
-func upload(url string, header http.Header) (io.WriteCloser, error) {
-    return  s3util.Create(url, header, nil)
+func upload(url string, header http.Header) (error) {
+    r, err := os.Open(opts.FilePath) 
+    if err != nil{
+        return err
+    }
+    w, err := s3util.Create(url, header, nil) 
+    if err != nil {
+        return err
+    }
+    if err := fileCopyClose(w, r); err != nil {return err}
+    return nil
 }
 
-func download(url string) (io.ReadCloser, error){
-    return s3util.Open(opts.Url, nil) 
+func download(url string) (error){
+    r, err := s3util.Open(opts.Url, nil) 
+    if err != nil{
+        return err
+    }
+    w, err := os.Create(opts.FilePath)
+    if err != nil{
+        return err
+    }
+    if err := fileCopyClose(w, r); err != nil {return err}
+    return nil
+}
+
+func fileCopyClose(w io.WriteCloser, r io.ReadCloser) (error){
+    if _, err := io.Copy(w,r); err != nil {return err}
+    if err := w.Close() ; err != nil {return err }
+return nil
 }
