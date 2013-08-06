@@ -9,6 +9,7 @@ import (
     "github.com/jessevdk/go-flags"
     "net/http"
     "log"
+    "crypto/md5"
 
 )
 
@@ -31,7 +32,7 @@ func main() {
             fmt.Fprintln(os.Stderr, err)
         }
     }    else if opts.Up{
-        err := upload(opts.Url, opts.Header)
+        err := upload(opts.Url, opts.Header, opts.Check)
         if err != nil {
             fmt.Fprintln(os.Stderr, err)
         }
@@ -51,19 +52,22 @@ var opts struct {
     FilePath string `short:"f" long:"file_path" description:"canonical path to file" required:"true"`
     Url string `short:"u" long:"url" description:"Url of S3 object" required:"true"` 
     Header http.Header `short:"h" long:"headers" description:"HTTP headers"` 
+    Check bool `short:"c" long:"checksum" description:"Verify integrity with  md5 checksum"`
 
 }
 
-//func open(opts struct) (io.ReadCloser, error){
-//    return os.Open(opts.FilePath)
-//}
-
-
-
-func upload(url string, header http.Header) (error) {
+func upload(url string, header http.Header, check bool) (error) {
     r, err := os.Open(opts.FilePath) 
     if err != nil{
         return err
+    }
+    if (check){
+        content_checksum, err := checksum(r)
+        if err != nil {
+            return err
+        }
+        header.Add("x-amz-meta-checksum", content_checksum)
+
     }
     w, err := s3util.Create(url, header, nil) 
     if err != nil {
@@ -90,4 +94,11 @@ func fileCopyClose(w io.WriteCloser, r io.ReadCloser) (error){
     if _, err := io.Copy(w,r); err != nil {return err}
     if err := w.Close() ; err != nil {return err }
 return nil
+}
+
+func checksum(r io.Reader)(string, error){
+    h:= md5.New()
+    io.Copy(h, r)
+ return fmt.Sprintf("%x", h.Sum(nil)), nil
+//return URLEncoding.EncodeToString(h.Sum(nil)), nil
 }
