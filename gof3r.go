@@ -1,4 +1,37 @@
 // Package gof3r is a command-line interface for Amazon AWS S3.
+//
+// Example usage:
+//   To upload a file to S3: 
+//      gof3r  --up --file_path=<file_path> --url=<public_url> -h<http_header1> -h<http_header2>...
+//   To download a file from S3:
+//      gof3r  --down --file_path=<file_path> --url=<public_url> 
+//  
+//   The file does not need to be seekable or stat-able. 
+//
+//   Examples:
+//   $ gof3r  --up --file_path=test_file --url=https://bucket1.s3.amazonaws.com/object -hx-amz-meta-custom-metadata:123 -hx-amz-meta-custom-metadata2:123abc -hx-amz-server-side-encryption:AES256 -hx-amz-storage-class:STANDARD 
+//   $ gof3r  --down --file_path=test_file --url=https://bucket1.s3.amazonaws.com/object 
+//
+// Environment:
+//
+// AwS_ACCESS_KEY – an AWS Access Key Id (required)
+//
+// AWS_SECRET_KEY – an AWS Secret Access Key (required)
+//
+// Complete Usage:
+//  gof3r [OPTIONS]
+//
+//Help Options:
+//  -h, --help=      Show this help message
+//
+//Application Options:
+//      --up         Upload to S3
+//      --down       Download from S3
+//  -f, --file_path= canonical path to file
+//  -u, --url=       Url of S3 object
+//  -h, --headers=   HTTP headers ({})
+//  -c, --checksum   Verify integrity with  md5 checksum
+
 package gof3r
 
 import (
