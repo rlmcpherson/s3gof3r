@@ -1,4 +1,3 @@
-s3cli
+gof3r
 =====
-
-CLI for AWS S3
+Concurrent command-line tool for AWS S3, written in Go.

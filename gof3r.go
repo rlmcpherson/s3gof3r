@@ -1,4 +1,4 @@
-package s3cli
+package gof3r
 
 import (
     "github.com/rlmcpherson/s3/s3util"
