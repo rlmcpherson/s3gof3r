@@ -1,3 +1,6 @@
 gof3r
 =====
-Concurrent command-line tool for AWS S3, written in Go.
+Package gof3r is a command-line interface for Amazon AWS S3.
+
+Documentation:
+http://godoc.org/github.com/rlmcpherson/gof3r
