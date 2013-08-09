@@ -1,4 +1,4 @@
-package gof3r
+package s3gof3r
 
 import (
     "testing"

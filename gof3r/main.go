@@ -1,7 +1,40 @@
+// Command gof3r provides a command-line interface to Amazon AWS S3.
+//
+// Usage:
+//   To upload a file to S3: 
+//      gof3r  --up --file_path=<file_path> --url=<public_url> -h<http_header1> -h<http_header2>...
+//   To download a file from S3:
+//      gof3r  --down --file_path=<file_path> --url=<public_url> 
+//  
+//   The file does not need to be seekable or stat-able. 
+//
+//   Examples:
+//     $ gof3r  --up --file_path=test_file --url=https://bucket1.s3.amazonaws.com/object -hx-amz-meta-custom-metadata:123 -hx-amz-meta-custom-metadata2:123abc -hx-amz-server-side-encryption:AES256 -hx-amz-storage-class:STANDARD 
+//     $ gof3r  --down --file_path=test_file --url=https://bucket1.s3.amazonaws.com/object 
+//
+// Environment:
+//
+// AwS_ACCESS_KEY – an AWS Access Key Id (required)
+//
+// AWS_SECRET_KEY – an AWS Secret Access Key (required)
+//
+// Complete Usage:
+//  gof3r [OPTIONS]
+//
+// Help Options:
+//  -h, --help=      Show this help message
+//
+// Application Options:
+//      --up         Upload to S3
+//      --down       Download from S3
+//  -f, --file_path= canonical path to file
+//  -u, --url=       Url of S3 object
+//  -h, --headers=   HTTP headers ({})
+//  -c, --checksum   Verify integrity with  md5 checksum
 package main
 
 import (
-    "github.com/rlmcpherson/gof3r"
+    "github.com/rlmcpherson/s3gof3r"
     "github.com/rlmcpherson/s3/s3util"
     "os"
     "fmt"
@@ -26,12 +59,12 @@ func main() {
     s3util.DefaultConfig.SecretKey = os.Getenv("AWS_SECRET_KEY")
 
     if opts.Down && !opts.Up{
-        err := gof3r.Download(opts.Url, opts.FilePath)
+        err := s3gof3r.Download(opts.Url, opts.FilePath)
         if err != nil {
             fmt.Fprintln(os.Stderr, err)
         }
     }    else if opts.Up{
-        err := gof3r.Upload(opts.Url, opts.FilePath, opts.Header, opts.Check)
+        err := s3gof3r.Upload(opts.Url, opts.FilePath, opts.Header, opts.Check)
         if err != nil {
             fmt.Fprintln(os.Stderr, err)
         }
