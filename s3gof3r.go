@@ -4,7 +4,7 @@ package s3gof3r
 
 import (
 	"crypto/md5"
-	"fmt"
+	"encoding/base64"
 	"github.com/rlmcpherson/s3/s3util"
 	"io"
 	"net/http"
@@ -62,5 +62,6 @@ func fileCopyClose(w io.WriteCloser, r io.ReadCloser) error {
 func checksum(r io.Reader) (string, error) {
 	h := md5.New()
 	io.Copy(h, r)
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
+	//return fmt.Sprintf("%x", h.Sum(nil)), nil
+	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
 }
