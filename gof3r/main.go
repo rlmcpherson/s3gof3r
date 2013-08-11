@@ -58,7 +58,7 @@ func main() {
 	s3util.DefaultConfig.SecretKey = os.Getenv("AWS_SECRET_KEY")
 
 	if opts.Down && !opts.Up {
-		err := s3gof3r.Download(opts.Url, opts.FilePath)
+		err := s3gof3r.Download(opts.Url, opts.FilePath, opts.Check)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
@@ -83,5 +83,5 @@ var opts struct {
 	FilePath string      `short:"f" long:"file_path" description:"canonical path to file" required:"true"`
 	Url      string      `short:"u" long:"url" description:"Url of S3 object" required:"true"`
 	Header   http.Header `short:"h" long:"headers" description:"HTTP headers"`
-	Check    bool        `short:"c" long:"checksum" description:"Verify integrity with  md5 checksum"`
+	Check    bool        `short:"c" long:"md5-checking" description:"Use md5 hash checking to ensure data integrity."`
 }

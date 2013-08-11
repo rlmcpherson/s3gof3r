@@ -12,26 +12,31 @@ import (
 	"os"
 )
 
+const (
+	checkSumHeader = "x-amz-meta-md5-hash"
+)
+
 func Upload(url string, file_path string, header http.Header, check bool) error {
 	r, err := os.Open(file_path)
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 	if check {
-		md5hash, err := md5hash(io.ReadSeeker(r))
+		md5hash, err := md5hash(r)
 		if err != nil {
 			return err
 		}
-		fmt.Println(md5hash)
-		header.Add("x-amz-meta-md5-hash", md5hash)
-		header.Write(os.Stdout)
-
+		header.Add(checkSumHeader, md5hash)
+		//fmt.Println(md5hash)
+		//header.Write(os.Stdout)
 	}
 	w, err := s3util.Create(url, header, nil)
 	if err != nil {
 		return err
 	}
-	if err := fileCopyClose(w, r); err != nil {
+	defer w.Close()
+	if _, err := io.Copy(w, r); err != nil {
 		return err
 	}
 	return nil
@@ -42,46 +47,41 @@ func Download(url string, file_path string, check bool) error {
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 	w, err := os.Create(file_path)
 	if err != nil {
 		return err
 	}
-	if check {
-		remoteHash := header.Get("x-amz-meta-md5-hash")
-		if remoteHash == "" {
-			return fmt.Errorf("Could not verify content. Http header 'Md5-Hash' header not found.")
-		}
-
-		//calculatedHash, err := md5hash(io.ReadSeeker(r.Read))
-		if err != nil {
-			return err
-		}
-		fmt.Println(md5hash)
-		header.Write(os.Stdout)
-
-	}
-
-	if err := fileCopyClose(w, r); err != nil {
-		return err
-	}
-	return nil
-}
-
-func fileCopyClose(w io.WriteCloser, r io.ReadCloser) error {
+	defer w.Close()
 	if _, err := io.Copy(w, r); err != nil {
 		return err
 	}
-	if err := w.Close(); err != nil {
-		return err
+	if check {
+		remoteHash := header.Get(checkSumHeader)
+		if remoteHash == "" {
+			return fmt.Errorf("Could not verify content. Http header %s not found.", checkSumHeader)
+		}
+		calculatedHash, err := md5hash(w)
+		if err != nil {
+			return err
+		}
+		if remoteHash != calculatedHash {
+			return fmt.Errorf("MD5 hash comparison failed for file %s. Hash from header: %s."+
+				"Calculated hash: %s.", file_path, remoteHash, calculatedHash)
+		}
+		//fmt.Printf("Calculated: %s. Remote: %s", calculatedHash, remoteHash)
+		//header.Write(os.Stdout)
 	}
 	return nil
 }
 
 func md5hash(r io.ReadSeeker) (string, error) {
 	h := md5.New()
-	io.Copy(h, r)
-	r.Seek(0, 0)
-	//encoder := base64.NewEncoder(base64.StdEncoding, b64)
+	if _, err := io.Copy(h, r); err != nil {
+		return "", err
+	}
+	if _, err := r.Seek(0, 0); err != nil {
+		return "", err
+	}
 	return (fmt.Sprintf("%x", h.Sum(nil))), nil
-	//return hex.EncodeToString(h.Sum(nil)), nil
 }
