@@ -4,7 +4,6 @@ package s3gof3r
 
 import (
 	"crypto/md5"
-	//"encoding/hex"
 	"fmt"
 	"github.com/rlmcpherson/s3/s3util"
 	"io"
@@ -27,7 +26,10 @@ func Upload(url string, file_path string, header http.Header, check bool) error 
 		if err != nil {
 			return err
 		}
-		header.Add(checkSumHeader, md5hash)
+		if header == nil {
+			header = make(http.Header)
+		}
+		header.Set(checkSumHeader, md5hash)
 		//fmt.Println(md5hash)
 		//header.Write(os.Stdout)
 	}
@@ -69,13 +71,16 @@ func Download(url string, file_path string, check bool) error {
 			return fmt.Errorf("MD5 hash comparison failed for file %s. Hash from header: %s."+
 				"Calculated hash: %s.", file_path, remoteHash, calculatedHash)
 		}
-		//fmt.Printf("Calculated: %s. Remote: %s", calculatedHash, remoteHash)
-		//header.Write(os.Stdout)
+		fmt.Printf("Calculated: %s. Remote: %s", calculatedHash, remoteHash)
+		header.Write(os.Stdout)
 	}
 	return nil
 }
 
 func md5hash(r io.ReadSeeker) (string, error) {
+	if _, err := r.Seek(0, 0); err != nil {
+		return "", err
+	}
 	h := md5.New()
 	if _, err := io.Copy(h, r); err != nil {
 		return "", err
