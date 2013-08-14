@@ -62,14 +62,19 @@ func main() {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
+		log.Println("Download completed.")
 	} else if opts.Up {
 		err := s3gof3r.Upload(opts.Url, opts.FilePath, opts.Header, opts.Check)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
+		log.Println("Upload completed.")
 
 	} else {
 		log.Fatal("specify direction of transfer: up or down")
+	}
+	if opts.Debug {
+		panic("Dump the stacks.")
 	}
 
 }
@@ -84,4 +89,5 @@ var opts struct {
 	Url      string      `short:"u" long:"url" description:"Url of S3 object" required:"true"`
 	Header   http.Header `short:"h" long:"headers" description:"HTTP headers"`
 	Check    bool        `short:"c" long:"md5-checking" description:"Use md5 hash checking to ensure data integrity."`
+	Debug    bool        `long:"debug" description:"Print debug statements and dump stacks."`
 }
