@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	//"github.com/op/go-logging"
+	"bufio"
 	"github.com/rlmcpherson/s3/s3util"
 	"io"
 	"log"
@@ -22,6 +23,7 @@ func Upload(url string, file_path string, header http.Header, check bool) error 
 	if err != nil {
 		return err
 	}
+	br := bufio.NewReader(r)
 	defer r.Close()
 	if check {
 		md5hash, err := md5hash(file_path)
@@ -40,7 +42,7 @@ func Upload(url string, file_path string, header http.Header, check bool) error 
 		return err
 	}
 	defer w.Close()
-	if _, err := io.Copy(w, r); err != nil {
+	if _, err := io.Copy(w, br); err != nil {
 		return err
 	}
 	return nil
@@ -57,24 +59,32 @@ func Download(url string, file_path string, check bool) error {
 		return err
 	}
 	defer w.Close()
-	if _, err := io.Copy(w, r); err != nil {
-		return err
-	}
 	if check {
+		h := md5.New()
+		bw := bufio.NewWriter(w)
+		mw := io.MultiWriter(bw, h)
+		if _, err := io.Copy(mw, r); err != nil {
+			return err
+		}
+		bw.Flush()
+		calculatedHash := fmt.Sprintf("%x", h.Sum(nil))
+		log.Println("Calculated MD5 Hash:", calculatedHash)
 		remoteHash := header.Get(checkSumHeader)
+		log.Println("GET REQ HEADER:")
+		header.Write(os.Stdout)
 		if remoteHash == "" {
 			return fmt.Errorf("Could not verify content. Http header %s not found.", checkSumHeader)
 		}
-		calculatedHash, err := md5hash(file_path)
-		if err != nil {
-			return err
-		}
+
 		if remoteHash != calculatedHash {
 			return fmt.Errorf("MD5 hash comparison failed for file %s. Hash from header: %s."+
 				"Calculated hash: %s.", file_path, remoteHash, calculatedHash)
 		}
-		log.Println("GET REQ HEADER:")
-		header.Write(os.Stdout)
+	} else {
+		if _, err := io.Copy(w, r); err != nil {
+			return err
+		}
+
 	}
 	return nil
 }

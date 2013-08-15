@@ -60,13 +60,13 @@ func main() {
 	if opts.Down && !opts.Up {
 		err := s3gof3r.Download(opts.Url, opts.FilePath, opts.Check)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			log.Fatal(err)
 		}
 		log.Println("Download completed.")
 	} else if opts.Up {
 		err := s3gof3r.Upload(opts.Url, opts.FilePath, opts.Header, opts.Check)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			log.Fatal(err)
 		}
 		log.Println("Upload completed.")
 
