@@ -23,8 +23,10 @@ func Upload(url string, file_path string, header http.Header, check bool) error 
 	if err != nil {
 		return err
 	}
+
 	br := bufio.NewReader(r)
 	defer r.Close()
+
 	if check {
 		md5hash, err := md5hash(file_path)
 		if err != nil {
@@ -41,8 +43,10 @@ func Upload(url string, file_path string, header http.Header, check bool) error 
 	if err != nil {
 		return err
 	}
-	defer w.Close()
 	if _, err := io.Copy(w, br); err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
 		return err
 	}
 	return nil
