@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	//"github.com/op/go-logging"
+	//	"archive/tar"
 	"bufio"
 	"github.com/rlmcpherson/s3/s3util"
 	"io"
@@ -23,10 +24,8 @@ func Upload(url string, file_path string, header http.Header, check bool) error 
 	if err != nil {
 		return err
 	}
-
 	br := bufio.NewReader(r)
 	defer r.Close()
-
 	if check {
 		md5hash, err := md5hash(file_path)
 		if err != nil {
@@ -37,7 +36,7 @@ func Upload(url string, file_path string, header http.Header, check bool) error 
 		}
 		header.Set(checkSumHeader, md5hash)
 		log.Println("POST REQ HEADER:")
-		header.Write(os.Stdout)
+		header.Write(os.Stderr)
 	}
 	w, err := s3util.Create(url, header, nil)
 	if err != nil {
@@ -46,9 +45,8 @@ func Upload(url string, file_path string, header http.Header, check bool) error 
 	if _, err := io.Copy(w, br); err != nil {
 		return err
 	}
-	if err := w.Close(); err != nil {
-		return err
-	}
+
+	err = w.Close()
 	return nil
 }
 
@@ -60,22 +58,33 @@ func Download(url string, file_path string, check bool) error {
 	defer r.Close()
 	w, err := os.Create(file_path)
 	if err != nil {
-		return err
+		if file_path == "" {
+			w = os.Stdout
+		} else {
+			return err
+		}
 	}
 	defer w.Close()
+
 	if check {
 		h := md5.New()
+
+		// buffered to reduce disk IO
+		bh := bufio.NewWriter(h)
 		bw := bufio.NewWriter(w)
-		mw := io.MultiWriter(bw, h)
+		mw := io.MultiWriter(bw, bh)
 		if _, err := io.Copy(mw, r); err != nil {
 			return err
 		}
+		// flush buffers to ensure all data is copied
 		bw.Flush()
+		bh.Flush()
+
 		calculatedHash := fmt.Sprintf("%x", h.Sum(nil))
 		log.Println("Calculated MD5 Hash:", calculatedHash)
 		remoteHash := header.Get(checkSumHeader)
 		log.Println("GET REQ HEADER:")
-		header.Write(os.Stdout)
+		header.Write(os.Stderr)
 		if remoteHash == "" {
 			return fmt.Errorf("Could not verify content. Http header %s not found.", checkSumHeader)
 		}
