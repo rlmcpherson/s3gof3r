@@ -92,6 +92,6 @@ var opts struct {
 	FilePath string      `short:"f" long:"file_path" description:"Path to file. Stdout / Stdin are used if not specified. "`
 	Url      string      `short:"u" long:"url" description:"Url of S3 object" required:"true"`
 	Header   http.Header `short:"h" long:"headers" description:"HTTP headers"`
-	Check    bool        `short:"c" long:"md5-checking" description:"Use md5 hash checking to ensure data integrity."`
+	Check    string      `short:"c" long:"md5-checking" description:"Use md5 hash checking to ensure data integrity. Arguments: metadata: calculate md5 before uploading and put in metadata. file: calculate md5 concurrently during upload and store at <url>.md5 Faster than storing in metadata and can be used with pipes." optional:"true" optional-value:"metadata"`
 	Debug    bool        `long:"debug" description:"Print debug statements and dump stacks."`
 }

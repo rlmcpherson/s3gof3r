@@ -5,8 +5,8 @@ package s3gof3r
 import (
 	"crypto/md5"
 	"fmt"
+	"hash"
 	//"github.com/op/go-logging"
-	//	"archive/tar"
 	"bufio"
 	"github.com/rlmcpherson/s3/s3util"
 	"io"
@@ -19,38 +19,77 @@ const (
 	checkSumHeader = "x-amz-meta-md5-hash"
 )
 
-func Upload(url string, file_path string, header http.Header, check bool) error {
+func Upload(url string, file_path string, header http.Header, check string) error {
+
+	var md5Hash hash.Hash
+
 	r, err := os.Open(file_path)
 	if err != nil {
-		return err
+		if file_path == "" {
+			r = os.Stdin
+		} else {
+			return err
+		}
 	}
-	br := bufio.NewReader(r)
+
+	//br := bufio.NewReader(r)
 	defer r.Close()
-	if check {
-		md5hash, err := md5hash(file_path)
+
+	log.Println("Check option: ", check)
+
+	if check == "metadata" {
+		// precalculate md5 for http header
+		md5Hash, err := md5Calc(r)
 		if err != nil {
 			return err
 		}
 		if header == nil {
 			header = make(http.Header)
 		}
-		header.Set(checkSumHeader, md5hash)
+
+		md5Header := fmt.Sprintf("%x", md5Hash.Sum(nil))
+		header.Set(checkSumHeader, md5Header)
 		log.Println("POST REQ HEADER:")
 		header.Write(os.Stderr)
 	}
+
 	w, err := s3util.Create(url, header, nil)
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(w, br); err != nil {
+	mw := io.MultiWriter(w)
+
+	if check == "file" {
+		md5Hash = md5.New()
+		mw = io.MultiWriter(md5Hash, w)
+
+	}
+	// buffered io to reduce disk IO
+	//bmw := bufio.NewWriter(mw)
+
+	if _, err := io.Copy(mw, r); err != nil {
 		return err
 	}
 
-	err = w.Close()
+	//if err := bmw.Flush(); err != nil {
+	//return err
+	//}
+
+	if err := w.Close(); err != nil {
+		return err
+	}
+
+	// Write md5 to file and upload
+	if check == "file" {
+		if err := md5FileUpload(md5Hash, url); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func Download(url string, file_path string, check bool) error {
+func Download(url string, file_path string, check string) error {
 	r, header, err := s3util.Open(url, nil)
 	if err != nil {
 		return err
@@ -65,13 +104,13 @@ func Download(url string, file_path string, check bool) error {
 		}
 	}
 	defer w.Close()
+	bw := bufio.NewWriter(w)
 
-	if check {
+	if check == "metadata" {
 		h := md5.New()
 
 		// buffered to reduce disk IO
 		bh := bufio.NewWriter(h)
-		bw := bufio.NewWriter(w)
 		mw := io.MultiWriter(bw, bh)
 		if _, err := io.Copy(mw, r); err != nil {
 			return err
@@ -83,6 +122,7 @@ func Download(url string, file_path string, check bool) error {
 		calculatedHash := fmt.Sprintf("%x", h.Sum(nil))
 		log.Println("Calculated MD5 Hash:", calculatedHash)
 		remoteHash := header.Get(checkSumHeader)
+		// TODO: download md5 file
 		log.Println("GET REQ HEADER:")
 		header.Write(os.Stderr)
 		if remoteHash == "" {
@@ -94,7 +134,7 @@ func Download(url string, file_path string, check bool) error {
 				"Calculated hash: %s.", file_path, remoteHash, calculatedHash)
 		}
 	} else {
-		if _, err := io.Copy(w, r); err != nil {
+		if _, err := io.Copy(bw, r); err != nil {
 			return err
 		}
 
@@ -102,16 +142,32 @@ func Download(url string, file_path string, check bool) error {
 	return nil
 }
 
-func md5hash(file_path string) (string, error) {
+func md5Calc(r io.ReadSeeker) (hash.Hash, error) {
 	log.Println("Calculating MD5 Hash...")
-	r, err := os.Open(file_path)
-	defer r.Close()
-	if err != nil {
-		return "", err
-	}
 	h := md5.New()
 	if _, err := io.Copy(h, r); err != nil {
-		return "", err
+		return nil, err
 	}
-	return (fmt.Sprintf("%x", h.Sum(nil))), nil
+	if _, err := r.Seek(0, 0); err != nil {
+		return nil, err
+	}
+	return h, nil
+}
+
+func md5FileUpload(h hash.Hash, url string) error {
+
+	md5Url := url + ".md5"
+	md5 := fmt.Sprintf("%x", h.Sum(nil))
+	w, err := s3util.Create(md5Url, nil, nil)
+	if err != nil {
+		return err
+	}
+	if _, err := io.WriteString(w, md5); err != nil {
+		return err
+	}
+	if err = w.Close(); err != nil {
+		return err
+	}
+	log.Println(md5Url, " uploaded: ", md5)
+	return nil
 }
