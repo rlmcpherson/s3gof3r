@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"github.com/rlmcpherson/s3/s3util"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -104,38 +105,46 @@ func Download(url string, file_path string, check string) error {
 		}
 	}
 	defer w.Close()
+
+	// Calculate md5 hash concurrently
+	h := md5.New()
+	// buffered to reduce disk IO
 	bw := bufio.NewWriter(w)
+	bh := bufio.NewWriter(h)
+	mw := io.MultiWriter(bw, bh)
 
-	if check == "metadata" {
-		h := md5.New()
+	if _, err := io.Copy(mw, r); err != nil {
+		return err
+	}
+	// flush buffers to ensure all data is copied
+	bw.Flush()
+	bh.Flush()
+	calculatedHash := fmt.Sprintf("%x", h.Sum(nil))
+	log.Println("Calculated MD5 Hash:", calculatedHash)
 
-		// buffered to reduce disk IO
-		bh := bufio.NewWriter(h)
-		mw := io.MultiWriter(bw, bh)
-		if _, err := io.Copy(mw, r); err != nil {
-			return err
-		}
-		// flush buffers to ensure all data is copied
-		bw.Flush()
-		bh.Flush()
+	if check != "" {
 
-		calculatedHash := fmt.Sprintf("%x", h.Sum(nil))
-		log.Println("Calculated MD5 Hash:", calculatedHash)
 		remoteHash := header.Get(checkSumHeader)
-		// TODO: download md5 file
-		log.Println("GET REQ HEADER:")
-		header.Write(os.Stderr)
-		if remoteHash == "" {
-			return fmt.Errorf("Could not verify content. Http header %s not found.", checkSumHeader)
+		if check == "metadata" {
+
+			log.Println("GET REQ HEADER:")
+			header.Write(os.Stderr)
+			if remoteHash == "" {
+				return fmt.Errorf("Could not checksum content. Http header %s not found.", checkSumHeader)
+			}
+		} else { // check == file
+			// download <url>.md5 file
+			remoteHash, err = md5fileDownload(url)
+			if err != nil {
+				return fmt.Errorf("Could not checksum content:  %s.md5 file not found.", url)
+
+			}
+
 		}
 
 		if remoteHash != calculatedHash {
-			return fmt.Errorf("MD5 hash comparison failed for file %s. Hash from header: %s."+
-				"Calculated hash: %s.", file_path, remoteHash, calculatedHash)
-		}
-	} else {
-		if _, err := io.Copy(bw, r); err != nil {
-			return err
+			return fmt.Errorf("MD5 checksums do not match. Given: %s."+
+				"Calculated: %s.", remoteHash, calculatedHash)
 		}
 
 	}
@@ -170,4 +179,20 @@ func md5FileUpload(h hash.Hash, url string) error {
 	}
 	log.Println(md5Url, " uploaded: ", md5)
 	return nil
+}
+
+func md5fileDownload(url string) (string, error) {
+	md5Url := url + ".md5"
+	r, _, err := s3util.Open(md5Url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	md5, err := ioutil.ReadAll(r)
+	if err != nil {
+		return "", err
+	}
+
+	log.Println("Md5 file downloaded:", string(md5))
+	return string(md5), nil
 }

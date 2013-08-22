@@ -35,6 +35,7 @@ package main
 
 import (
 	"fmt"
+	//"github.com/htcat/htcat"
 	"github.com/jessevdk/go-flags"
 	"github.com/rlmcpherson/s3/s3util"
 	"github.com/rlmcpherson/s3gof3r"
@@ -65,6 +66,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		log.Println("Download completed.")
 	} else if opts.Up {
 		err := s3gof3r.Upload(opts.Url, opts.FilePath, opts.Header, opts.Check)
