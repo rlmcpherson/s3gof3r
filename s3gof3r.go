@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 )
 
@@ -136,7 +137,7 @@ func Download(url string, file_path string, check string) error {
 			// download <url>.md5 file
 			remoteHash, err = md5fileDownload(url)
 			if err != nil {
-				return fmt.Errorf("Could not checksum content:  %s.md5 file not found.", url)
+				return fmt.Errorf("Could not checksum content:", err)
 
 			}
 
@@ -165,7 +166,10 @@ func md5Calc(r io.ReadSeeker) (hash.Hash, error) {
 
 func md5FileUpload(h hash.Hash, url string) error {
 
-	md5Url := url + ".md5"
+	md5Url, err := md5Url(url)
+	if err != nil {
+		return err
+	}
 	md5 := fmt.Sprintf("%x", h.Sum(nil))
 	w, err := s3util.Create(md5Url, nil, nil)
 	if err != nil {
@@ -182,7 +186,11 @@ func md5FileUpload(h hash.Hash, url string) error {
 }
 
 func md5fileDownload(url string) (string, error) {
-	md5Url := url + ".md5"
+
+	md5Url, err := md5Url(url)
+	if err != nil {
+		return "", err
+	}
 	r, _, err := s3util.Open(md5Url, nil)
 	if err != nil {
 		return "", err
@@ -195,4 +203,19 @@ func md5fileDownload(url string) (string, error) {
 
 	log.Println("Md5 file downloaded:", string(md5))
 	return string(md5), nil
+}
+
+// Calculate url for md5 file in subdirectory of bucket / directory where the file is stored
+// e.g. the md5 for https://mybucket.s3.amazonaws.com/gof3r will be stored in
+// https://mybucket.s3.amazonaws.com/.md5/gof3r.md5
+func md5Url(fileUrl string) (string, error) {
+
+	parsed_url, err := url.Parse(fileUrl)
+	if err != nil {
+		return "", err
+	}
+	path := parsed_url.Path
+	parsed_url.Path = ""
+	return fmt.Sprint(parsed_url.String(), "/.md5", path, ".md5"), nil
+
 }
