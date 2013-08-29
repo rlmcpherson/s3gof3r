@@ -53,8 +53,7 @@ func main() {
 	fmt.Printf(strings.Join(args, " "))
 
 	if err != nil {
-		os.Exit(1)
-
+		log.Fatal(err)
 	}
 	s3util.DefaultConfig.AccessKey = os.Getenv("AWS_ACCESS_KEY")
 	s3util.DefaultConfig.SecretKey = os.Getenv("AWS_SECRET_KEY")
