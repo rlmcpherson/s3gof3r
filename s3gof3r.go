@@ -34,7 +34,6 @@ func Upload(url string, file_path string, header http.Header, check string) erro
 		}
 	}
 
-	//br := bufio.NewReader(r)
 	defer r.Close()
 
 	log.Println("Check option: ", check)
@@ -66,16 +65,10 @@ func Upload(url string, file_path string, header http.Header, check string) erro
 		mw = io.MultiWriter(md5Hash, w)
 
 	}
-	// buffered io to reduce disk IO
-	//bmw := bufio.NewWriter(mw)
 
 	if _, err := io.Copy(mw, r); err != nil {
 		return err
 	}
-
-	//if err := bmw.Flush(); err != nil {
-	//return err
-	//}
 
 	if err := w.Close(); err != nil {
 		return err

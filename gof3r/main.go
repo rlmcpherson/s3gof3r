@@ -35,7 +35,6 @@ package main
 
 import (
 	"fmt"
-	//"github.com/htcat/htcat"
 	"github.com/jessevdk/go-flags"
 	"github.com/rlmcpherson/s3/s3util"
 	"github.com/rlmcpherson/s3gof3r"
