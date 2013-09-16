@@ -41,11 +41,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 )
 
 func main() {
+	var m runtime.MemStats
 
 	// Parse flags
 	args, err := flags.Parse(&opts)
@@ -78,6 +80,8 @@ func main() {
 	}
 	log.Println("Duration:", time.Since(start))
 	if opts.Debug {
+		runtime.ReadMemStats(&m)
+		fmt.Printf("%d,%d,%d,%d\n", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased)
 		panic("Dump the stacks.")
 	}
 
