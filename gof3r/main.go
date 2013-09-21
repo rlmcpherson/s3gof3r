@@ -36,28 +36,20 @@ package main
 import (
 	"fmt"
 	"github.com/jessevdk/go-flags"
-	"github.com/rlmcpherson/s3/s3util"
 	"github.com/rlmcpherson/s3gof3r"
 	"log"
 	"net/http"
-	"os"
 	"runtime"
-	"strings"
 	"time"
 )
 
 func main() {
-	var m runtime.MemStats
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Parse flags
-	args, err := flags.Parse(&opts)
-	fmt.Printf(strings.Join(args, " "))
-
-	if err != nil {
+	if _, err := flags.Parse(&opts); err != nil {
 		log.Fatal(err)
 	}
-	s3util.DefaultConfig.AccessKey = os.Getenv("AWS_ACCESS_KEY")
-	s3util.DefaultConfig.SecretKey = os.Getenv("AWS_SECRET_KEY")
 
 	start := time.Now()
 
@@ -80,9 +72,7 @@ func main() {
 	}
 	log.Println("Duration:", time.Since(start))
 	if opts.Debug {
-		runtime.ReadMemStats(&m)
-		fmt.Printf("%d,%d,%d,%d\n", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased)
-		panic("Dump the stacks.")
+		debug()
 	}
 
 }
@@ -98,4 +88,13 @@ var opts struct {
 	Header   http.Header `short:"h" long:"headers" description:"HTTP headers"`
 	Check    string      `short:"c" long:"md5-checking" description:"Use md5 hash checking to ensure data integrity. Arguments: metadata: calculate md5 before uploading and put in metadata. file: calculate md5 concurrently during upload and store at <url>.md5 Faster than storing in metadata and can be used with pipes." optional:"true" optional-value:"metadata"`
 	Debug    bool        `long:"debug" description:"Print debug statements and dump stacks."`
+}
+
+func debug() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	log.Println("MEMORY STATS")
+	fmt.Printf("%d,%d,%d,%d\n", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased)
+	panic("Dump the stacks:")
+
 }

@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 )
 
 const (
@@ -54,7 +55,7 @@ func Upload(url string, file_path string, header http.Header, check string) erro
 		header.Write(os.Stderr)
 	}
 
-	w, err := s3util.Create(url, header, nil)
+	w, err := s3util.Create(url, header, s3Config())
 	if err != nil {
 		return err
 	}
@@ -85,7 +86,7 @@ func Upload(url string, file_path string, header http.Header, check string) erro
 }
 
 func Download(url string, file_path string, check string) error {
-	r, header, err := s3util.Open(url, nil)
+	r, header, err := s3util.Open(url, s3Config())
 	if err != nil {
 		return err
 	}
@@ -211,4 +212,23 @@ func md5Url(fileUrl string) (string, error) {
 	parsed_url.Path = ""
 	return fmt.Sprint(parsed_url.String(), "/.md5", path, ".md5"), nil
 
+}
+
+func s3Config() (config *s3util.Config) {
+	config = s3util.DefaultConfig
+	config.AccessKey = os.Getenv("AWS_ACCESS_KEY")
+	config.SecretKey = os.Getenv("AWS_SECRET_KEY")
+	config.Client = httpClient()
+
+	return config
+
+}
+
+func httpClient() (client *http.Client) {
+	transport := &http.Transport{
+		ResponseHeaderTimeout: time.Second * 2,
+		//MaxIdleConnsPerHost:   10,
+	}
+	return &http.Client{
+		Transport: transport}
 }
