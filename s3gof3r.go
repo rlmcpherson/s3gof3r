@@ -86,7 +86,8 @@ func Upload(url string, file_path string, header http.Header, check string) erro
 }
 
 func Download(url string, file_path string, check string) error {
-	r, header, err := s3util.Open(url, s3Config())
+	//r, header, err := s3util.Open(url, s3Config())
+	r, header, err := Open(url, s3Config())
 	if err != nil {
 		return err
 	}
