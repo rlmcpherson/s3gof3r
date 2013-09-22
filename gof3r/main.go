@@ -44,6 +44,8 @@ import (
 )
 
 func main() {
+
+	// set the number of processes to the number of cpus for parallelization of transfers
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Parse flags
