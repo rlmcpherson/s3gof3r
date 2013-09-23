@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"github.com/rlmcpherson/s3/s3util"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
+	//"os"
 	"sync"
 	"syscall"
 	"time"
@@ -80,7 +82,7 @@ type bufferpool struct {
 //c[i], c[j] = c[j], c[i]
 //}
 
-func Open(raw_url string, c *s3util.Config) (io.ReadCloser, http.Header, error) {
+func s3Get(raw_url string, c *s3util.Config) (io.ReadCloser, http.Header, error) {
 
 	p_url, err := url.Parse(raw_url)
 	if err != nil {
@@ -90,30 +92,31 @@ func Open(raw_url string, c *s3util.Config) (io.ReadCloser, http.Header, error) 
 	return newGetter(*p_url, c)
 }
 
-func newGetter(url url.URL, c *s3util.Config) (io.ReadCloser, http.Header, error) {
+func newGetter(p_url url.URL, c *s3util.Config) (io.ReadCloser, http.Header, error) {
 
 	// initialize getter
 	g := new(getter)
 	g.conf = c
-	g.url = url
+	g.url = p_url
 	g.bufsz = buffer_size
 	g.bp.get, g.bp.give = makeRecycler()
 	g.get_ch = make(chan *chunk)
 	g.read_ch = make(chan *chunk)
+	g.nTry = 1
+	g.q_wait = make(map[int]*chunk)
 
 	// get content length
-	r := http.Request{
-		Method: "HEAD",
-		URL:    &g.url,
-		Body:   nil,
+	r, err := http.NewRequest("HEAD", p_url.String(), nil)
+	if err != nil {
+		return nil, nil, err
 	}
 	r.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 	r.Header.Set("User-Agent", "s3Gof3r")
 
-	g.conf.Sign(&r, *g.conf.Keys)
+	g.conf.Sign(r, *g.conf.Keys)
 	g.client = g.conf.Client
 
-	resp, err := g.client.Do(&r)
+	resp, err := g.client.Do(r)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -122,12 +125,15 @@ func newGetter(url url.URL, c *s3util.Config) (io.ReadCloser, http.Header, error
 	}
 	g.content_length = resp.ContentLength
 
-	g.concurrency = min(int64(g.conf.Concurrency), (g.content_length / buffer_size))
+	g.concurrency = min(int64(g.conf.Concurrency), (g.content_length/buffer_size)+1)
+	log.Println("Concurrency:", g.concurrency)
 
 	for i := int64(0); i < g.concurrency; i++ {
 		go g.worker()
 	}
+	go g.init_chunks()
 
+	log.Println("End of initialize")
 	return g, resp.Header, nil
 }
 
@@ -138,18 +144,21 @@ func (g *getter) init_chunks() {
 			id: g.chunk_total,
 			header: http.Header{
 				"Range": {fmt.Sprintf("bytes=%d-%d",
-					i, size)}}, //TODO: add time, agent
+					i, i+size-1)},
+				"User-Agent": {"S3Gof3r"},
+				"Date":       {time.Now().UTC().Format(http.TimeFormat)}},
+
 			start: i,
 			size:  size,
 			b:     nil,
 			len:   0}
 
-		//g.chunks = append(g.chunks, c)
-		i += g.bufsz
+		i += size
 		g.chunk_total++
 		g.wg.Add(1)
 
 		// put on get chan
+		log.Println("Sending chunk ", c.id, " Offset: ", c.start, " Size:", c.size)
 		g.get_ch <- c
 	}
 
@@ -182,36 +191,55 @@ func (g *getter) getChunk(c *chunk) error {
 	c.b = <-g.bp.get
 	c.b.Reset()
 
-	r := http.Request{
-		Method: "GET",
-		URL:    &g.url,
-		Body:   nil,
-		Header: c.header,
-	}
-	g.conf.Sign(&r, *g.conf.Keys)
+	log.Println("Entering getChunk")
 
-	resp, err := g.client.Do(&r)
+	r, err := http.NewRequest("GET", g.url.String(), nil)
+	if err != nil {
+		return err
+	}
+	r.Header = c.header
+
+	g.conf.Sign(r, *g.conf.Keys)
+
+	//r.Write(os.Stderr)
+	resp, err := g.client.Do(r)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.Status != "206 Partial Content" {
+		//resp.Write(os.Stderr)
 		return fmt.Errorf("Expected HTTP Status 206, received %q",
 			resp.Status)
 	}
-	n, err := io.Copy(c.b, resp.Body) //TODO: Md5 checking
+	//resp.Write(os.Stderr)
+	//resp.Header.Write(os.Stderr)
+	log.Println("buffer size: ", c.b.Len())
+
+	//panic("dump")
+	//n, err := io.Copy(c.b, resp.Body) //TODO: Md5 checking
+	n, err := c.b.ReadFrom(resp.Body)
+	//n, err := io.CopyN(c.b, resp.Body, c.size-1)
+	log.Println("Body length:", c.b.Len())
+	//c.b.Write(b)
 	if err != nil {
 		return err
 	}
 	if n != c.size {
+		log.Println("Size mismatch")
 		return fmt.Errorf("Chunk %d: Expected %d bytes, received %d",
 			c.id, c.size, n)
 	}
+
+	log.Println("Waiting for read channel")
+	//panic("dump")
 	g.read_ch <- c
+	log.Println("Exiting getChunk")
 	return nil
 }
 
 func (g *getter) Read(p []byte) (int, error) {
+	var err error
 	if g.closed {
 		return 0, syscall.EINVAL
 	}
@@ -219,37 +247,50 @@ func (g *getter) Read(p []byte) (int, error) {
 		return 0, g.err
 	}
 	if g.cur_chunk == nil {
-		if err := g.get_cur_chunk; err != nil {
-			return 0, g.err
+		//log.Println("Getting chunk")
+		g.cur_chunk, err = g.get_cur_chunk()
+		if err != nil {
+			return 0, err
+		}
+		if g.cur_chunk == nil {
+			return 0, fmt.Errorf("Chunk still nil")
 		}
 	}
 	n, err := g.cur_chunk.b.Read(p)
 
 	// Empty buffer, move on to next
 	if err == io.EOF {
+		log.Printf("Completed chunk %d of %d\n", g.cur_chunk.id, g.chunk_total-1)
+		// Do not send EOF for each chunk.
+		if g.cur_chunk.id == g.chunk_total-1 && g.cur_chunk.b.Len() == 0 {
+			log.Println("Last Chunk:", g.cur_chunk)
+			return 0, io.EOF
+		}
 		g.bp.give <- g.cur_chunk.b
 		g.cur_chunk = nil
 		g.cur_chunk_id++
+		return n - 1, nil
 	}
 
 	return n, err
 }
 
-func (g *getter) get_cur_chunk() (err error) {
+func (g *getter) get_cur_chunk() (*chunk, error) {
 	var cur_chunk *chunk
-
-	for g.cur_chunk == nil {
+	var err error
+	for {
 		// first check q_wait
 		if cur_chunk, ok := g.q_wait[g.cur_chunk_id]; ok {
-			g.cur_chunk = cur_chunk
 			delete(g.q_wait, g.cur_chunk_id)
+			//log.Println("return cur_chunk:", cur_chunk)
+			return cur_chunk, err
 		}
 		// if not present, read from channel
 		cur_chunk = <-g.read_ch
 		g.q_wait[cur_chunk.id] = cur_chunk
 
 	}
-	return err
+	return cur_chunk, err
 }
 
 func (g *getter) Close() error {
@@ -260,12 +301,14 @@ func (g *getter) Close() error {
 		return g.err
 	}
 	g.wg.Wait()
-	close(g.read_ch)
-	close(g.get_ch)
-	close(g.bp.give)
-	close(g.bp.get)
+	//close(g.read_ch) //TODO: close these
+	//close(g.get_ch)
+	//close(g.bp.give)
+	//close(g.bp.get)
 
 	g.closed = true
+	log.Println("makes:", Makes)
+	log.Println("max q len:", Q_max)
 
 	return nil
 }

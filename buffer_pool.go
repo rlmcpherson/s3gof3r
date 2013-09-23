@@ -8,12 +8,20 @@ import (
 )
 
 //debug
-var makes int
-var q_len_max int
+var Makes int
+var Q_max int
+
+const (
+	bufsz = 5 * 1024 * 1024
+)
 
 type queued struct {
 	when   time.Time
 	buffer *bytes.Buffer
+}
+
+func makeBuffer(size int64) []byte {
+	return make([]byte, size)
 }
 
 func makeRecycler() (get, give chan *bytes.Buffer) {
@@ -25,10 +33,10 @@ func makeRecycler() (get, give chan *bytes.Buffer) {
 		for {
 			if q.Len() == 0 {
 
-				//q.PushFront(queued{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(int64(u.bufsz)))})
+				//q.PushFront(queued{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(int64(bufsz)))})
 				q.PushFront(queued{when: time.Now(), buffer: bytes.NewBuffer(nil)})
-				//log.Println("Make buffer:", u.bufsz)
-				makes++
+				log.Println("Make buffer")
+				Makes++
 			}
 
 			e := q.Front()
@@ -39,7 +47,7 @@ func makeRecycler() (get, give chan *bytes.Buffer) {
 				timeout.Stop()
 				q.PushFront(queued{when: time.Now(), buffer: b})
 				//log.Println("Return buffer")
-				q_len_max = max(q_len_max, q.Len())
+				Q_max = max(Q_max, q.Len())
 
 			case get <- e.Value.(queued).buffer:
 				timeout.Stop()

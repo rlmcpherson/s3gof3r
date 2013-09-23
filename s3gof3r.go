@@ -87,7 +87,8 @@ func Upload(url string, file_path string, header http.Header, check string) erro
 
 func Download(url string, file_path string, check string) error {
 	//r, header, err := s3util.Open(url, s3Config())
-	r, header, err := Open(url, s3Config())
+	var r io.ReadCloser
+	r, header, err := s3Get(url, s3Config())
 	if err != nil {
 		return err
 	}
@@ -109,6 +110,7 @@ func Download(url string, file_path string, check string) error {
 	bh := bufio.NewWriter(h)
 	mw := io.MultiWriter(bw, bh)
 
+	log.Println("Starting copy from s3Get")
 	if _, err := io.Copy(mw, r); err != nil {
 		return err
 	}
@@ -220,6 +222,7 @@ func s3Config() (config *s3util.Config) {
 	config.AccessKey = os.Getenv("AWS_ACCESS_KEY")
 	config.SecretKey = os.Getenv("AWS_SECRET_KEY")
 	config.Client = httpClient()
+	config.Concurrency = 10
 
 	return config
 
@@ -227,7 +230,7 @@ func s3Config() (config *s3util.Config) {
 
 func httpClient() (client *http.Client) {
 	transport := &http.Transport{
-		ResponseHeaderTimeout: time.Second * 2,
+		ResponseHeaderTimeout: time.Second * 30,
 		//MaxIdleConnsPerHost:   10,
 	}
 	return &http.Client{
