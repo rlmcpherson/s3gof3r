@@ -1,4 +1,4 @@
-//-------------Downloader
+// TODO: Add documentation
 package s3gof3r
 
 import (
@@ -67,21 +67,6 @@ type bufferpool struct {
 	give chan *bytes.Buffer
 }
 
-//type ChunkSlice []*chunk
-
-//Methods required to sort
-//func (c ChunkSlice) Len() int {
-//return len(c)
-//}
-
-//func (c ChunkSlice) Less(i, j *chunk) bool {
-//return i.id < j.id
-//}
-
-//func (c ChunkSlice) Swap(i, j *chunk) {
-//c[i], c[j] = c[j], c[i]
-//}
-
 func s3Get(raw_url string, c *s3util.Config) (io.ReadCloser, http.Header, error) {
 
 	p_url, err := url.Parse(raw_url)
@@ -102,7 +87,7 @@ func newGetter(p_url url.URL, c *s3util.Config) (io.ReadCloser, http.Header, err
 	g.bp.get, g.bp.give = makeRecycler()
 	g.get_ch = make(chan *chunk)
 	g.read_ch = make(chan *chunk)
-	g.nTry = 1
+	g.nTry = 5
 	g.q_wait = make(map[int]*chunk)
 
 	// get content length
@@ -191,8 +176,6 @@ func (g *getter) getChunk(c *chunk) error {
 	c.b = <-g.bp.get
 	c.b.Reset()
 
-	log.Println("Entering getChunk")
-
 	r, err := http.NewRequest("GET", g.url.String(), nil)
 	if err != nil {
 		return err
@@ -201,7 +184,6 @@ func (g *getter) getChunk(c *chunk) error {
 
 	g.conf.Sign(r, *g.conf.Keys)
 
-	//r.Write(os.Stderr)
 	resp, err := g.client.Do(r)
 	if err != nil {
 		return err
@@ -212,11 +194,9 @@ func (g *getter) getChunk(c *chunk) error {
 		return fmt.Errorf("Expected HTTP Status 206, received %q",
 			resp.Status)
 	}
-	//resp.Write(os.Stderr)
 	//resp.Header.Write(os.Stderr)
 	log.Println("buffer size: ", c.b.Len())
 
-	//panic("dump")
 	//n, err := io.Copy(c.b, resp.Body) //TODO: Md5 checking
 	n, err := c.b.ReadFrom(resp.Body)
 	//n, err := io.CopyN(c.b, resp.Body, c.size-1)
@@ -231,10 +211,7 @@ func (g *getter) getChunk(c *chunk) error {
 			c.id, c.size, n)
 	}
 
-	log.Println("Waiting for read channel")
-	//panic("dump")
 	g.read_ch <- c
-	log.Println("Exiting getChunk")
 	return nil
 }
 
@@ -247,13 +224,9 @@ func (g *getter) Read(p []byte) (int, error) {
 		return 0, g.err
 	}
 	if g.cur_chunk == nil {
-		//log.Println("Getting chunk")
 		g.cur_chunk, err = g.get_cur_chunk()
 		if err != nil {
 			return 0, err
-		}
-		if g.cur_chunk == nil {
-			return 0, fmt.Errorf("Chunk still nil")
 		}
 	}
 	n, err := g.cur_chunk.b.Read(p)
