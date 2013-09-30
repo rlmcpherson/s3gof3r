@@ -27,7 +27,7 @@ const (
 
 const (
 	buffer_size           = 20 * MB
-	makes_over_conc int64 = 5
+	makes_over_conc int64 = 11
 )
 
 type getter struct {
@@ -90,6 +90,9 @@ func newGetter(p_url url.URL, c *s3util.Config) (io.ReadCloser, http.Header, err
 	g.read_ch = make(chan *chunk)
 	g.nTry = 5
 	g.q_wait = make(map[int]*chunk)
+
+	//start buffer pool
+	go bufferPool()
 
 	// get content length
 	r, err := http.NewRequest("HEAD", p_url.String(), nil)
@@ -176,18 +179,18 @@ func (g *getter) retryGetChunk(c *chunk) {
 
 func (g *getter) get_buffer() *bytes.Buffer {
 	var b *bytes.Buffer
-	for b == nil {
-		select {
+	//if int64(Makes) < (g.concurrency + makes_over_conc) {
+	//b = bytes.NewBuffer(nil)
+	//Makes++
+	//} else {
+	//wait for a buffer
 
-		case b = <-get_buf:
-			// return
-		default:
-			if int64(Makes) < (g.concurrency + makes_over_conc) {
-				b = bytes.NewBuffer(nil)
-				Makes++
-			}
+	select {
 
-		}
+	case b = <-get_buf:
+	default:
+		b = bytes.NewBuffer(nil)
+		Makes++
 	}
 	return b
 }

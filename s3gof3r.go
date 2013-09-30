@@ -222,7 +222,7 @@ func s3Config() (config *s3util.Config) {
 	config.AccessKey = os.Getenv("AWS_ACCESS_KEY")
 	config.SecretKey = os.Getenv("AWS_SECRET_KEY")
 	config.Client = httpClient()
-	config.Concurrency = 20
+	config.Concurrency = 10
 
 	return config
 
@@ -231,6 +231,7 @@ func s3Config() (config *s3util.Config) {
 func httpClient() (client *http.Client) {
 	transport := &http.Transport{
 		ResponseHeaderTimeout: time.Second * 5,
+
 		//MaxIdleConnsPerHost:   10,
 	}
 	return &http.Client{
