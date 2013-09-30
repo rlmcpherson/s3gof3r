@@ -26,7 +26,8 @@ const (
 )
 
 const (
-	buffer_size = 20 * MB
+	buffer_size           = 20 * MB
+	makes_over_conc int64 = 5
 )
 
 type getter struct {
@@ -41,10 +42,10 @@ type getter struct {
 	cur_chunk      *chunk
 	content_length int64
 	chunk_total    int
-	get_ch         chan *chunk
 	read_ch        chan *chunk
+	get_ch         chan *chunk
 
-	bp bufferpool
+	//bp bufferpool
 
 	q_wait map[int]*chunk
 
@@ -62,10 +63,10 @@ type chunk struct {
 	len    int64
 }
 
-type bufferpool struct {
-	get  chan *bytes.Buffer
-	give chan *bytes.Buffer
-}
+//type bufferpool struct {
+//get  chan *bytes.Buffer
+//give chan *bytes.Buffer
+//}
 
 func s3Get(raw_url string, c *s3util.Config) (io.ReadCloser, http.Header, error) {
 
@@ -84,7 +85,7 @@ func newGetter(p_url url.URL, c *s3util.Config) (io.ReadCloser, http.Header, err
 	g.conf = c
 	g.url = p_url
 	g.bufsz = buffer_size
-	g.bp.get, g.bp.give = makeRecycler()
+	//g.bp.get, g.bp.give = makeRecycler()
 	g.get_ch = make(chan *chunk)
 	g.read_ch = make(chan *chunk)
 	g.nTry = 5
@@ -161,7 +162,7 @@ func (g *getter) retryGetChunk(c *chunk) {
 	defer g.wg.Done()
 	var err error
 	// get buffer to write
-	c.b = <-g.bp.get
+	c.b = g.get_buffer()
 	for i := 0; i < g.nTry; i++ {
 		err = g.getChunk(c)
 		if err == nil {
@@ -171,6 +172,24 @@ func (g *getter) retryGetChunk(c *chunk) {
 	}
 	g.err = err
 
+}
+
+func (g *getter) get_buffer() *bytes.Buffer {
+	var b *bytes.Buffer
+	for b == nil {
+		select {
+
+		case b = <-get_buf:
+			// return
+		default:
+			if int64(Makes) < (g.concurrency + makes_over_conc) {
+				b = bytes.NewBuffer(nil)
+				Makes++
+			}
+
+		}
+	}
+	return b
 }
 
 func (g *getter) getChunk(c *chunk) error {
@@ -240,7 +259,7 @@ func (g *getter) Read(p []byte) (int, error) {
 			log.Println("Last Chunk:", g.cur_chunk)
 			return 0, io.EOF
 		}
-		g.bp.give <- g.cur_chunk.b
+		give_buf <- g.cur_chunk.b
 		g.cur_chunk = nil
 		g.cur_chunk_id++
 		return n - 1, nil
@@ -277,7 +296,7 @@ func (g *getter) Close() error {
 	g.wg.Wait()
 	g.closed = true
 	log.Println("makes:", Makes)
-	log.Println("max q len:", Q_max)
+	//log.Println("max q len:", Q_max)
 
 	return nil
 }
