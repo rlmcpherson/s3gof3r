@@ -275,11 +275,6 @@ func (g *getter) Close() error {
 		return g.err
 	}
 	g.wg.Wait()
-	//close(g.read_ch) //TODO: close these
-	//close(g.get_ch)
-	//close(g.bp.give)
-	//close(g.bp.get)
-
 	g.closed = true
 	log.Println("makes:", Makes)
 	log.Println("max q len:", Q_max)
