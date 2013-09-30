@@ -160,20 +160,21 @@ func (g *getter) retryGetChunk(c *chunk) {
 
 	defer g.wg.Done()
 	var err error
+	// get buffer to write
+	c.b = <-g.bp.get
 	for i := 0; i < g.nTry; i++ {
 		err = g.getChunk(c)
 		if err == nil {
 			return
 		}
+		log.Println(err)
 	}
 	g.err = err
 
 }
 
 func (g *getter) getChunk(c *chunk) error {
-
-	// get buffer to write
-	c.b = <-g.bp.get
+	// ensure buffer is empty
 	c.b.Reset()
 
 	r, err := http.NewRequest("GET", g.url.String(), nil)

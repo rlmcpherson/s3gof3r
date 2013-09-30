@@ -46,7 +46,7 @@ import (
 func main() {
 
 	// set the number of processes to the number of cpus for parallelization of transfers
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU() / 2)
 
 	// Parse flags
 	if _, err := flags.Parse(&opts); err != nil {
@@ -96,7 +96,8 @@ func debug() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	log.Println("MEMORY STATS")
-	fmt.Printf("%d,%d,%d,%d\n", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased)
-	panic("Dump the stacks:")
+	log.Println(fmt.Printf("%d,%d,%d,%d\n", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased))
+	log.Println("NUM CPU:", runtime.NumCPU())
+	//panic("Dump the stacks:")
 
 }

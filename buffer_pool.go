@@ -41,7 +41,7 @@ func makeRecycler() (get, give chan *bytes.Buffer) {
 
 			e := q.Front()
 
-			timeout := time.NewTimer(time.Minute)
+			timeout := time.NewTimer(time.Second * 10)
 			select {
 			case b := <-give:
 				timeout.Stop()
@@ -58,7 +58,7 @@ func makeRecycler() (get, give chan *bytes.Buffer) {
 				e := q.Front()
 				for e != nil {
 					n := e.Next()
-					if time.Since(e.Value.(queued).when) > time.Minute {
+					if time.Since(e.Value.(queued).when) > time.Second*5 {
 						q.Remove(e)
 						e.Value = nil
 						log.Println("Delete old buffer") //TODO: remove logging
