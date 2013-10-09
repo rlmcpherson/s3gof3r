@@ -39,7 +39,10 @@ import (
 	"github.com/rlmcpherson/s3gof3r"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"time"
 )
 
@@ -98,6 +101,14 @@ func debug() {
 	log.Println("MEMORY STATS")
 	log.Println(fmt.Printf("%d,%d,%d,%d\n", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased))
 	log.Println("NUM CPU:", runtime.NumCPU())
+
+	//profiling
+	f, err := os.Create("memprofileup.out")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.WriteHeapProfile(f)
+	f.Close()
 	//panic("Dump the stacks:")
 
 }
