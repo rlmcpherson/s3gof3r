@@ -26,8 +26,8 @@ const (
 )
 
 const (
-	buffer_size           = 20 * MB
-	makes_over_conc int64 = 11
+	buffer_size     = 30 * MB
+	makes_over_conc = 10
 )
 
 type getter struct {
@@ -184,13 +184,19 @@ func (g *getter) get_buffer() *bytes.Buffer {
 	//Makes++
 	//} else {
 	//wait for a buffer
+	if Makes < g.concurrency+makes_over_conc {
+		size := g.bufsz + 1*KB
+		empty := make([]byte, 0, size)
 
-	select {
-
-	case b = <-get_buf:
-	default:
-		b = bytes.NewBuffer(nil)
+		b = bytes.NewBuffer(empty)
+		//b.Grow(int(g.bufsz))
 		Makes++
+	} else {
+
+		select {
+		//TODO: make deterministic
+		case b = <-get_buf:
+		}
 	}
 	return b
 }

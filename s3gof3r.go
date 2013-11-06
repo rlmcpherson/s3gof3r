@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -221,19 +222,46 @@ func s3Config() (config *s3util.Config) {
 	config = s3util.DefaultConfig
 	config.AccessKey = os.Getenv("AWS_ACCESS_KEY")
 	config.SecretKey = os.Getenv("AWS_SECRET_KEY")
-	config.Client = httpClient()
+	config.Client = createClientWithTimeout(1 * time.Second)
 	config.Concurrency = 10
 
 	return config
 
 }
 
-func httpClient() (client *http.Client) {
-	transport := &http.Transport{
-		ResponseHeaderTimeout: time.Second * 5,
+/*func httpClient(timeout time.Duration) *http.Client {*/
 
-		//MaxIdleConnsPerHost:   10,
+//dialFunc := func(network, addr string) (net.Conn, error) {
+//return net.DialTimeout(network, addr, timeout)
+//}
+////transport := &http.Transport{
+////ResponseHeaderTimeout: time.Second * 5,
+
+////MaxIdleConnsPerHost:   10,
+//}
+
+//return &http.Client{
+////Transport: transport,
+//&http.Transport{
+//Dial:      dialFunc,
+//},
+//}
+//}
+
+func createClientWithTimeout(timeout time.Duration) *http.Client {
+	dialFunc := func(network, addr string) (net.Conn, error) {
+		c, err := net.DialTimeout(network, addr, timeout)
+		if err != nil {
+			log.Print(err)
+			return nil, err
+		}
+		return c, nil
 	}
+
 	return &http.Client{
-		Transport: transport}
+		Transport: &http.Transport{
+			Dial: dialFunc,
+			ResponseHeaderTimeout: time.Second * 2,
+		},
+	}
 }

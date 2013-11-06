@@ -6,7 +6,7 @@ import (
 )
 
 //debug
-var Makes int
+var Makes int64
 
 var get_buf = make(chan *bytes.Buffer, 10)
 var give_buf = make(chan *bytes.Buffer)
@@ -19,7 +19,7 @@ func bufferPool() {
 		log.Println("Buffer returned")
 		select {
 		case get_buf <- b:
-			log.Println("Buffers in list", len(give_buf))
+			log.Println("Buffers in list", len(get_buf))
 		default:
 			// do nothing, buffer is garbage collected}
 		}
