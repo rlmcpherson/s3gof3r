@@ -49,7 +49,7 @@ import (
 func main() {
 
 	// set the number of processes to the number of cpus for parallelization of transfers
-	runtime.GOMAXPROCS(runtime.NumCPU() / 2)
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Parse flags
 	if _, err := flags.Parse(&opts); err != nil {
