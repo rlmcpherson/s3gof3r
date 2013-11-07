@@ -223,7 +223,7 @@ func s3Config() (config *s3util.Config) {
 	config.AccessKey = os.Getenv("AWS_ACCESS_KEY")
 	config.SecretKey = os.Getenv("AWS_SECRET_KEY")
 	config.Client = createClientWithTimeout(1 * time.Second)
-	config.Concurrency = 10
+	config.Concurrency = 20
 
 	return config
 

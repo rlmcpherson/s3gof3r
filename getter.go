@@ -26,8 +26,8 @@ const (
 )
 
 const (
-	buffer_size     = 30 * MB
-	makes_over_conc = 10
+	buffer_size     = 20 * MB
+	makes_over_conc = 5
 )
 
 type getter struct {
@@ -179,12 +179,8 @@ func (g *getter) retryGetChunk(c *chunk) {
 
 func (g *getter) get_buffer() *bytes.Buffer {
 	var b *bytes.Buffer
-	//if int64(Makes) < (g.concurrency + makes_over_conc) {
-	//b = bytes.NewBuffer(nil)
-	//Makes++
-	//} else {
-	//wait for a buffer
-	if Makes < g.concurrency+makes_over_conc {
+	// not threadsafe, but worst case will wait for buffer
+	if Makes < g.concurrency+makes_over_conc && len(get_buf) < 1 {
 		size := g.bufsz + 1*KB
 		empty := make([]byte, 0, size)
 
@@ -192,9 +188,7 @@ func (g *getter) get_buffer() *bytes.Buffer {
 		//b.Grow(int(g.bufsz))
 		Makes++
 	} else {
-
 		select {
-		//TODO: make deterministic
 		case b = <-get_buf:
 		}
 	}
