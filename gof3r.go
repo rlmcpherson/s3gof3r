@@ -1,23 +1,24 @@
+// Package S3 provides fast concurrent access to Amazon S3, including CLI.
 package s3gof3r
 
 import (
-	//"io"
+	"fmt"
+	"io"
 	"net/http"
-	//"os"
+	"net/url"
+	"time"
 )
 
+// Keys for an Amazon Web Services account.
+// Used for signing http requests.
 type Keys struct {
 	AccessKey string
 	SecretKey string
 }
 
 type S3 struct {
-	// The service's domain. Defaults to "amazonaws.com"
-	Domain string
+	Domain string // The service's domain. Defaults to "s3.amazonaws.com"
 	Keys
-}
-
-func New(domain string, keys Keys) {
 }
 
 type Bucket struct {
@@ -26,31 +27,64 @@ type Bucket struct {
 }
 
 type Config struct {
-	*http.Client
-	Concurrency int
-	NTry        int
-	Md5         Md5Check
+	*http.Client      // nil to use s3gof3r default client
+	Concurrency  int  // number of parts to get or put concurrently
+	NTry         int  // maximum attempts for each part
+	Md5Check     bool // the md5 hash of the object is stored in <bucket>/.md5/<object_key> and verified on gets
 }
 
 // Defaults
 var DefaultConfig = &Config{
 	Concurrency: 20,
 	NTry:        5,
-	Md5:         File,
+	Md5Check:    true,
 }
 
-var DefaultDomain = "amazonaws.com"
-
-type Md5Check uint
+var DefaultDomain = "s3.amazonaws.com"
 
 const (
-	File Md5Check = iota
-	Metadata
-	None
+	httpClientTimeout = 2 * time.Second
 )
 
-func (*Bucket) GetReader() {}
+// Returns a new S3
+// domain defaults to DefaultDomain if empty
+func New(domain string, keys Keys) *S3 {
+	if domain == "" {
+		domain = DefaultDomain
+	}
+	return &S3{domain, keys}
+}
 
-func (*Bucket) PutWriter() {}
+// Returns a bucket on s3j
+func (s3 *S3) Bucket(name string) *Bucket {
+	return &Bucket{s3, name}
+}
 
-func (*S3) sign() {}
+// Provides a reader and downloads data using parallel ranged get requests.
+// Data from the requests is reordered and written sequentially.
+//
+// Data integrity is verified via the option specified in c.
+// Header data from the downloaded object is also returned, useful for reading object metadata.
+func (b *Bucket) GetReader(key string, c *Config) (r io.ReadCloser, h http.Header, err error) {
+	if c == nil {
+		c = DefaultConfig
+	}
+	if c.Client == nil {
+		c.Client = createClientWithTimeout(httpClientTimeout)
+	}
+	var url_ *url.URL
+	url_, err = url.Parse(fmt.Sprintf("https://%s.%s./%s", b.Name, b.S3.Domain, key))
+	if err != nil {
+		return
+	}
+	return newGetter(*url_, c, b)
+}
+
+// Provides a writer to upload data as multipart upload requests.
+//
+// Each header in h is added to the HTTP request header. This is useful for specifying
+// options such as server-side encryption in metadata as well as custom user metadata.
+// DefaultConfig is used if c is nil.
+func (b *Bucket) PutWriter(key string, h *http.Header, c *Config) (io.WriteCloser, error) {
+	return nil, nil
+}

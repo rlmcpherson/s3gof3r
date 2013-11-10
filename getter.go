@@ -4,7 +4,7 @@ package s3gof3r
 import (
 	"bytes"
 	"fmt"
-	"github.com/rlmcpherson/s3/s3util"
+	//"github.com/rlmcpherson/s3/s3util"
 	"io"
 	"log"
 	"net/http"
@@ -33,7 +33,8 @@ const (
 type getter struct {
 	url    url.URL
 	client *http.Client
-	conf   *s3util.Config
+	conf   *Config
+	b      *Bucket
 	bufsz  int64
 	err    error
 	wg     sync.WaitGroup
@@ -44,8 +45,6 @@ type getter struct {
 	chunk_total    int
 	read_ch        chan *chunk
 	get_ch         chan *chunk
-
-	//bp bufferpool
 
 	q_wait map[int]*chunk
 
@@ -68,17 +67,17 @@ type chunk struct {
 //give chan *bytes.Buffer
 //}
 
-func s3Get(raw_url string, c *s3util.Config) (io.ReadCloser, http.Header, error) {
+//func s3Get(raw_url string, c *Config) (io.ReadCloser, http.Header, error) {
 
-	p_url, err := url.Parse(raw_url)
-	if err != nil {
-		return nil, nil, err
-	}
+//p_url, err := url.Parse(raw_url)
+//if err != nil {
+//return nil, nil, err
+//}
 
-	return newGetter(*p_url, c)
-}
+//return newGetter(*p_url, c)
+//}
 
-func newGetter(p_url url.URL, c *s3util.Config) (io.ReadCloser, http.Header, error) {
+func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header, error) {
 
 	// initialize getter
 	g := new(getter)
@@ -102,7 +101,7 @@ func newGetter(p_url url.URL, c *s3util.Config) (io.ReadCloser, http.Header, err
 	r.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 	r.Header.Set("User-Agent", "s3Gof3r")
 
-	g.conf.Sign(r, *g.conf.Keys)
+	g.b.Sign(r)
 	g.client = g.conf.Client
 
 	resp, err := g.client.Do(r)
@@ -205,7 +204,7 @@ func (g *getter) getChunk(c *chunk) error {
 	}
 	r.Header = c.header
 
-	g.conf.Sign(r, *g.conf.Keys)
+	g.b.Sign(r)
 
 	resp, err := g.client.Do(r)
 	if err != nil {

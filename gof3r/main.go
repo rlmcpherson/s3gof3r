@@ -56,6 +56,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if opts.Debug {
+		f, err := os.Create("cpuprofile.out")
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	start := time.Now()
 
 	if opts.Down && !opts.Up {
@@ -104,11 +113,16 @@ func debug() {
 
 	//profiling
 	f, err := os.Create("memprofileup.out")
+	fg, err := os.Create("goprof.out")
+	fb, err := os.Create("blockprof.out")
 	if err != nil {
 		log.Fatal(err)
 	}
 	pprof.WriteHeapProfile(f)
+	pprof.Lookup("goroutine").WriteTo(fg, 0)
+	pprof.Lookup("block").WriteTo(fb, 0)
 	f.Close()
+	fg.Close()
+	fb.Close()
 	//panic("Dump the stacks:")
-
 }
