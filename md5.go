@@ -1,5 +1,3 @@
-// Package s3gof3r is a command-line interface for Amazon AWS S3.
-//
 package s3gof3r
 
 import (
