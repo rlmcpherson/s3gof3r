@@ -30,7 +30,7 @@
 //  -f, --file_path= canonical path to file
 //  -u, --url=       Url of S3 object
 //  -h, --headers=   HTTP headers ({})
-//  -c, --checksum   Verify integrity with  md5 checksum
+//  -c, --md5-checking   Verify integrity with  md5 checksum
 package main
 
 import (
@@ -68,14 +68,14 @@ func main() {
 	start := time.Now()
 
 	if opts.Down && !opts.Up {
-		err := s3gof3r.Download(opts.Url, opts.FilePath, opts.Check, opts.Concurrency)
+		err := s3gof3r.Download(opts.Key, opts.Bucket, opts.FilePath, opts.Check, opts.Concurrency)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		log.Println("Download completed.")
 	} else if opts.Up {
-		err := s3gof3r.Upload(opts.Url, opts.FilePath, opts.Header, opts.Check, opts.Concurrency)
+		err := s3gof3r.Upload(opts.Key, opts.Bucket, opts.FilePath, opts.Header, opts.Check, opts.Concurrency)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -92,13 +92,12 @@ func main() {
 }
 
 var opts struct {
-
-	//AccessKey string `short:"k" long:"accesskey" description:"AWS Access Key"`
-	//SecretKey string `short:"s" long:"secretkey" description:"AWS Secret Key"`
 	Up          bool        `long:"up" description:"Upload to S3"`
 	Down        bool        `long:"down" description:"Download from S3"`
 	FilePath    string      `short:"f" long:"file_path" description:"Path to file. Stdout / Stdin are used if not specified. "`
-	Url         string      `short:"u" long:"url" description:"Url of S3 object" required:"true"`
+	Url         string      `short:"u" long:"url" description:"Url of S3 object"`
+	Key         string      `long:"key" description:"key of s3 object"`
+	Bucket      string      `long:"bucket" description:"s3 bucket"`
 	Header      http.Header `short:"h" long:"headers" description:"HTTP headers"`
 	Check       string      `short:"c" long:"md5-checking" description:"Use md5 hash checking to ensure data integrity. Arguments: metadata: calculate md5 before uploading and put in metadata. file: calculate md5 concurrently during upload and store at <url>.md5 Faster than storing in metadata and can be used with pipes." optional:"true" optional-value:"metadata"`
 	Debug       bool        `long:"debug" description:"Print debug statements and dump stacks."`

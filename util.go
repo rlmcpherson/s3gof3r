@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
 // convenience multipliers
@@ -97,4 +98,9 @@ func md5Check(r io.ReadSeeker, given string) (err error) {
 		return fmt.Errorf("md5 mismatch. given:%s calculated:%s", given, calculated)
 	}
 	return nil
+}
+
+func bucketFromUrl(subdomain string) string {
+	s := strings.Split(subdomain, ".")
+	return strings.Join(s[:len(s)-1], ".")
 }

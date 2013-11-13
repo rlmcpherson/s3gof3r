@@ -79,7 +79,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
 	var url_ *url.URL
-	url_, err = url.Parse(fmt.Sprintf("https://%s.%s%s", b.Name, b.S3.Domain, path))
+	url_, err = url.Parse(fmt.Sprintf("https://%s.%s/%s", b.Name, b.S3.Domain, path))
 	if err != nil {
 		return
 	}
@@ -103,7 +103,7 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
 	var url_ *url.URL
-	url_, err = url.Parse(fmt.Sprintf("https://%s.%s%s", b.Name, b.S3.Domain, path))
+	url_, err = url.Parse(fmt.Sprintf("https://%s.%s/%s", b.Name, b.S3.Domain, path))
 	if err != nil {
 		return
 	}

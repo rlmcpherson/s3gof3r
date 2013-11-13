@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"crypto/md5"
 	"fmt"
-	"github.com/rlmcpherson/s3/s3util"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -14,14 +13,13 @@ import (
 	"net/http"
 	url_ "net/url"
 	"os"
-	"time"
 )
 
 const (
 	checkSumHeader = "x-amz-meta-md5-hash"
 )
 
-func Upload(url string, file_path string, header http.Header, check string, conc int) error {
+func Upload(key string, bucket string, file_path string, header http.Header, check string, conc int) error {
 
 	var md5Hash hash.Hash
 
@@ -56,13 +54,11 @@ func Upload(url string, file_path string, header http.Header, check string, conc
 	k := Keys{AccessKey: os.Getenv("AWS_ACCESS_KEY"),
 		SecretKey: os.Getenv("AWS_SECRET_KEY"),
 	}
-	s3_ := New("", k)
-	b := s3_.Bucket("rm-dev-repos")
-	key, _ := url_.Parse(url)
-	path := key.Path
+	s3 := New("", k)
+	b := s3.Bucket(bucket)
 	c := DefaultConfig
 	c.Concurrency = conc
-	w, err := b.PutWriter(path, header, c)
+	w, err := b.PutWriter(key, header, c)
 
 	if err != nil {
 		return err
@@ -84,7 +80,7 @@ func Upload(url string, file_path string, header http.Header, check string, conc
 
 	// Write md5 to file and upload
 	if check == "file" {
-		if err := md5FileUpload(md5Hash, url, b); err != nil {
+		if err := md5FileUpload(md5Hash, key, b); err != nil {
 			return err
 		}
 	}
@@ -92,20 +88,17 @@ func Upload(url string, file_path string, header http.Header, check string, conc
 	return nil
 }
 
-func Download(url string, file_path string, check string, conc int) error {
-	//r, header, err := s3util.Open(url, s3Config())
+func Download(key string, bucket string, file_path string, check string, conc int) error {
 	var r io.ReadCloser
 
 	k := Keys{AccessKey: os.Getenv("AWS_ACCESS_KEY"),
 		SecretKey: os.Getenv("AWS_SECRET_KEY"),
 	}
-	s3_ := New("", k)
-	b := s3_.Bucket("rm-dev-repos")
-	key, _ := url_.Parse(url)
-	path := key.Path
+	s3 := New("", k)
+	b := s3.Bucket(bucket)
 	c := DefaultConfig
 	c.Concurrency = conc
-	r, header, err := b.GetReader(path, c)
+	r, header, err := b.GetReader(key, c)
 	if err != nil {
 		return err
 	}
@@ -127,7 +120,6 @@ func Download(url string, file_path string, check string, conc int) error {
 	bh := bufio.NewWriter(h)
 	mw := io.MultiWriter(bw, bh)
 
-	log.Println("Starting copy from s3Get")
 	if _, err := io.Copy(mw, r); err != nil {
 		return err
 	}
@@ -136,7 +128,7 @@ func Download(url string, file_path string, check string, conc int) error {
 	bh.Flush()
 	calculatedHash := fmt.Sprintf("%x", h.Sum(nil))
 	log.Println("Calculated MD5 Hash:", calculatedHash)
-
+	log.Println("Check option: ", check)
 	if check != "" {
 
 		remoteHash := header.Get(checkSumHeader)
@@ -149,7 +141,7 @@ func Download(url string, file_path string, check string, conc int) error {
 			}
 		} else { // check == file
 			// download <url>.md5 file
-			remoteHash, err = md5fileDownload(url, b)
+			remoteHash, err = md5fileDownload(key, b)
 			if err != nil {
 				return fmt.Errorf("Could not checksum content: %s", err)
 
@@ -178,14 +170,12 @@ func md5Calc(r io.ReadSeeker) (hash.Hash, error) {
 	return h, nil
 }
 
-func md5FileUpload(h hash.Hash, url string, b *Bucket) error {
+func md5FileUpload(h hash.Hash, key string, b *Bucket) error {
 
-	md5Path, err := md5Path(url)
-	if err != nil {
-		return err
-	}
 	md5 := fmt.Sprintf("%x", h.Sum(nil))
-	w, err := b.PutWriter(md5Path, nil, nil)
+	c := DefaultConfig
+	path := "/.md5" + key + ".md5"
+	w, err := b.PutWriter(path, nil, c)
 	if err != nil {
 		return err
 	}
@@ -199,13 +189,10 @@ func md5FileUpload(h hash.Hash, url string, b *Bucket) error {
 	return nil
 }
 
-func md5fileDownload(url string, b *Bucket) (string, error) {
+func md5fileDownload(key string, b *Bucket) (string, error) {
 
-	md5Path, err := md5Path(url)
-	if err != nil {
-		return "", err
-	}
-	r, _, err := b.GetReader(md5Path, nil)
+	path := "/.md5" + key + ".md5"
+	r, _, err := b.GetReader(path, nil)
 	if err != nil {
 		return "", err
 	}
@@ -231,16 +218,5 @@ func md5Path(fileUrl string) (string, error) {
 	path := parsed_url.Path
 	parsed_url.Path = ""
 	return fmt.Sprint("/.md5", path, ".md5"), nil
-
-}
-
-func s3Config() (config *s3util.Config) {
-	config = s3util.DefaultConfig
-	config.AccessKey = os.Getenv("AWS_ACCESS_KEY")
-	config.SecretKey = os.Getenv("AWS_SECRET_KEY")
-	config.Client = createClientWithTimeout(1 * time.Second)
-	config.Concurrency = 20
-
-	return config
 
 }
