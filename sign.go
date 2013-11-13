@@ -66,6 +66,7 @@ func (b *Bucket) writeSignature(w io.Writer, r *http.Request) {
 	if _, ok := r.Header["X-Amz-Date"]; !ok {
 		w.Write([]byte(r.Header.Get("date")))
 	}
+	r.Header.Set("User-Agent", "S3Gof3r")
 	w.Write([]byte{'\n'})
 	b.writeCanonicalizedAmzHeaders(w, r)
 	b.writeCanonicializedResource(w, r)
@@ -84,7 +85,7 @@ func (b *Bucket) writeCanonicalizedAmzHeaders(w io.Writer, r *http.Request) {
 	sort.Strings(amzHeaders)
 	for _, h := range amzHeaders {
 		v := r.Header[h]
-		w.Write([]byte(h))
+		w.Write([]byte(strings.ToLower(h)))
 		w.Write([]byte(":"))
 		w.Write([]byte(strings.Join(v, ",")))
 		w.Write([]byte("\n"))
