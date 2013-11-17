@@ -12,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -200,7 +199,6 @@ func (p *putter) putPart(part *part) error {
 	req.ContentLength = part.len
 	req.Header.Set(md5Header, part.contentMd5)
 	p.b.Sign(req)
-	//req.Write(os.Stderr)
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return err
@@ -326,7 +324,6 @@ func (p *putter) md5Content(r io.ReadSeeker) (string, string, error) {
 	h := md5.New()
 	mw := io.MultiWriter(h, p.md5)
 	io.Copy(mw, r)
-	r.Seek(0, 0)
 	sum := h.Sum(nil)
 	hexSum := fmt.Sprintf("%x", sum)
 	// add to checksum of all parts for verification on upload completion
@@ -343,8 +340,8 @@ func (p *putter) md5Content(r io.ReadSeeker) (string, string, error) {
 func (p *putter) putMd5() (err error) {
 	calcMd5 := fmt.Sprintf("%x", p.md5.Sum(nil))
 	md5Reader := strings.NewReader(calcMd5)
-	log.Println("md5 in putter: ", calcMd5)
 	md5Path := fmt.Sprint(".md5", p.url.Path, ".md5")
+	log.Println("md5: ", calcMd5)
 	log.Println("md5Path: ", md5Path)
 	md5Url, err := url.Parse(fmt.Sprintf("%s://%s.%s/%s", p.url.Scheme, p.b.Name, p.b.S3.Domain, md5Path))
 	if err != nil {
@@ -355,7 +352,6 @@ func (p *putter) putMd5() (err error) {
 		return
 	}
 	p.b.Sign(r)
-	r.Header.Write(os.Stderr)
 	resp, err := p.client.Do(r)
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {

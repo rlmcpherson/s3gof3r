@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	url_ "net/url"
 	"os"
 )
 
@@ -183,7 +182,6 @@ func md5FileUpload(h hash.Hash, key string, b *Bucket) error {
 	if err = w.Close(); err != nil {
 		return err
 	}
-	log.Println(md5Path, " uploaded: ", md5)
 	return nil
 }
 
@@ -202,19 +200,4 @@ func md5fileDownload(key string, b *Bucket) (string, error) {
 
 	log.Println("Md5 file downloaded:", string(md5))
 	return string(md5), nil
-}
-
-// Calculate url for md5 file in subdirectory of bucket / directory where the file is stored
-// e.g. the md5 for https://mybucket.s3.amazonaws.com/gof3r will be stored in
-// https://mybucket.s3.amazonaws.com/.md5/gof3r.md5
-func md5Path(fileUrl string) (string, error) {
-
-	parsed_url, err := url_.Parse(fileUrl)
-	if err != nil {
-		return "", err
-	}
-	path := parsed_url.Path
-	parsed_url.Path = ""
-	return fmt.Sprint("/.md5", path, ".md5"), nil
-
 }

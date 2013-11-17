@@ -2,7 +2,9 @@ package s3gof3r
 
 import (
 	"bytes"
+	"crypto/md5"
 	"fmt"
+	"hash"
 	"io"
 	"log"
 	"net/http"
@@ -35,6 +37,8 @@ type getter struct {
 	concurrency int
 	nTry        int
 	closed      bool
+
+	md5 hash.Hash
 }
 
 type chunk struct {
@@ -67,6 +71,7 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g.b.Sign(r)
 	g.client = c.Client
 	resp, err := g.client.Do(r)
+	g.md5 = md5.New()
 	if err != nil {
 		return nil, nil, err
 	}
