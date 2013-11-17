@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/list"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	"hash"
@@ -11,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -46,7 +48,7 @@ type putter struct {
 	b           *Bucket
 	concurrency int
 	nTry        int
-	UploadId    string // written by xml decoder
+	c           Config
 
 	bufsz      int64
 	buf        *bytes.Buffer
@@ -56,13 +58,14 @@ type putter struct {
 	err        error
 	wg         sync.WaitGroup
 	md5OfParts hash.Hash
+	md5        hash.Hash
 	ETag       string
 
-	get   chan *bytes.Buffer
-	give  chan *bytes.Buffer
-	makes int
-
-	xml struct {
+	get      chan *bytes.Buffer
+	give     chan *bytes.Buffer
+	makes    int
+	UploadId string
+	xml      struct {
 		XMLName string `xml:"CompleteMultipartUpload"`
 		Part    []*part
 	}
@@ -74,7 +77,7 @@ type completeXml struct {
 
 // Sends an S3 multipart upload initiation request.
 // See http://docs.amazonwebservices.com/AmazonS3/latest/dev/mpuoverview.html.
-// This initial request returns an UploadId that we use to identify
+// The initial request returns an UploadId that we use to identify
 // subsequent PUT requests.
 func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err error) {
 	p = new(putter)
@@ -83,6 +86,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	p.b = b
 	p.concurrency = c.Concurrency
 	p.nTry = c.NTry
+	p.c = *c
 
 	p.bufsz = max64(minPartSize, c.PartSize)
 	r, err := http.NewRequest("POST", url.String()+"?uploads", nil)
@@ -112,6 +116,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 		go p.worker()
 	}
 	p.md5OfParts = md5.New()
+	p.md5 = md5.New()
 	//p.get, p.give = p.makeRecycler()
 	p.get, p.give = startBufferPool(p.concurrency * 2)
 	return p, nil
@@ -144,7 +149,7 @@ func (p *putter) flush() {
 	b := *p.buf
 	part := &part{bytes.NewReader(b.Bytes()), int64(b.Len()), p.buf, p.part, "", ""}
 	var err error
-	part.contentMd5, part.ETag, err = md5Content(part.r, p)
+	part.contentMd5, part.ETag, err = p.md5Content(part.r)
 	if err != nil {
 		p.err = err
 	}
@@ -195,6 +200,7 @@ func (p *putter) putPart(part *part) error {
 	req.ContentLength = part.len
 	req.Header.Set(md5Header, part.contentMd5)
 	p.b.Sign(req)
+	//req.Write(os.Stderr)
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return err
@@ -275,6 +281,11 @@ func (p *putter) Close() error {
 	}
 	//log.Println("Hash from multipart complete header:", remoteMd5ofParts)
 	//log.Println("Calculated multipart hash:", calculatedMd5ofParts)
+	if p.c.Md5Check {
+		if err := p.putMd5(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -308,6 +319,49 @@ func (p *putter) get_buffer() *bytes.Buffer {
 		b = <-p.get
 	}
 	return b
+}
+
+// Md5 functions
+func (p *putter) md5Content(r io.ReadSeeker) (string, string, error) {
+	h := md5.New()
+	mw := io.MultiWriter(h, p.md5)
+	io.Copy(mw, r)
+	r.Seek(0, 0)
+	sum := h.Sum(nil)
+	hexSum := fmt.Sprintf("%x", sum)
+	// add to checksum of all parts for verification on upload completion
+	_, err := p.md5OfParts.Write(sum)
+	if err != nil {
+		return "", "", err
+	}
+	return base64.StdEncoding.EncodeToString(sum), hexSum, nil
+}
+
+// Put md5 file in .md5 subdirectory of bucket  where the file is stored
+// e.g. the md5 for https://mybucket.s3.amazonaws.com/gof3r will be stored in
+// https://mybucket.s3.amazonaws.com/.md5/gof3r.md5
+func (p *putter) putMd5() (err error) {
+	calcMd5 := fmt.Sprintf("%x", p.md5.Sum(nil))
+	md5Reader := strings.NewReader(calcMd5)
+	log.Println("md5 in putter: ", calcMd5)
+	md5Path := fmt.Sprint(".md5", p.url.Path, ".md5")
+	log.Println("md5Path: ", md5Path)
+	md5Url, err := url.Parse(fmt.Sprintf("%s://%s.%s/%s", p.url.Scheme, p.b.Name, p.b.S3.Domain, md5Path))
+	if err != nil {
+		return
+	}
+	r, err := http.NewRequest("PUT", md5Url.String(), md5Reader)
+	if err != nil {
+		return
+	}
+	p.b.Sign(r)
+	r.Header.Write(os.Stderr)
+	resp, err := p.client.Do(r)
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return newRespError(resp)
+	}
+	return
 }
 
 // old buffer pooling code

@@ -29,11 +29,12 @@ type Bucket struct {
 }
 
 type Config struct {
-	*http.Client       // nil to use s3gof3r default client
-	Concurrency  int   // number of parts to get or put concurrently
-	PartSize     int64 //  initial  part size in bytes to use for multipart gets or puts
-	NTry         int   // maximum attempts for each part
-	Md5Check     bool  // the md5 hash of the object is stored in <bucket>/.md5/<object_key> and verified on gets
+	*http.Client        // nil to use s3gof3r default client
+	Concurrency  int    // number of parts to get or put concurrently
+	PartSize     int64  //  initial  part size in bytes to use for multipart gets or puts
+	NTry         int    // maximum attempts for each part
+	Md5Check     bool   // the md5 hash of the object is stored in <bucket>/.md5/<object_key> and verified on gets
+	Scheme       string // url scheme, defaults to 'https'
 }
 
 // Defaults
@@ -42,6 +43,7 @@ var DefaultConfig = &Config{
 	PartSize:    20 * mb,
 	NTry:        5,
 	Md5Check:    true,
+	Scheme:      "https",
 }
 
 var DefaultDomain = "s3.amazonaws.com"
@@ -79,7 +81,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
 	var url_ *url.URL
-	url_, err = url.Parse(fmt.Sprintf("https://%s.%s/%s", b.Name, b.S3.Domain, path))
+	url_, err = url.Parse(fmt.Sprintf("%s://%s.%s/%s", c.Scheme, b.Name, b.S3.Domain, path))
 	if err != nil {
 		return
 	}
@@ -103,7 +105,7 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
 	var url_ *url.URL
-	url_, err = url.Parse(fmt.Sprintf("https://%s.%s/%s", b.Name, b.S3.Domain, path))
+	url_, err = url.Parse(fmt.Sprintf("%s://%s.%s/%s", c.Scheme, b.Name, b.S3.Domain, path))
 	if err != nil {
 		return
 	}

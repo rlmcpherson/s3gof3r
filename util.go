@@ -73,21 +73,6 @@ func (e *respError) Error() string {
 	)
 }
 
-// Md5 functions
-func md5Content(r io.ReadSeeker, u *putter) (string, string, error) {
-	h := md5.New()
-	io.Copy(h, r)
-	r.Seek(0, 0)
-	sum := h.Sum(nil)
-	hexSum := fmt.Sprintf("%x", sum)
-	// add to checksum of all parts for verification on upload completion
-	_, err := u.md5OfParts.Write(sum)
-	if err != nil {
-		return "", "", err
-	}
-	return base64.StdEncoding.EncodeToString(sum), hexSum, nil
-}
-
 func md5Check(r io.ReadSeeker, given string) (err error) {
 	h := md5.New()
 	io.Copy(h, r)
