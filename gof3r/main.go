@@ -99,7 +99,7 @@ var opts struct {
 	Key         string      `long:"key" description:"key of s3 object"`
 	Bucket      string      `long:"bucket" description:"s3 bucket"`
 	Header      http.Header `short:"h" long:"headers" description:"HTTP headers"`
-	Check       string      `short:"c" long:"md5-checking" description:"Use md5 hash checking to ensure data integrity. Arguments: metadata: calculate md5 before uploading and put in metadata. file: calculate md5 concurrently during upload and store at <url>.md5 Faster than storing in metadata and can be used with pipes." optional:"true" optional-value:"metadata"`
+	Check       string      `short:"c" long:"check" description:"Use md5 hash checking to ensure data integrity. The md5 hash of is calculated concurrently during upload and stored at <bucket>.md5/<key>.md5." default:"true"`
 	Debug       bool        `long:"debug" description:"Print debug statements and dump stacks."`
 	Concurrency int         `long:"concurrency" short:"p" default:"20" description:"Print debug statements and dump stacks."`
 }

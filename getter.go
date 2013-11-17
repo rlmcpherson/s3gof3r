@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -37,6 +38,7 @@ type getter struct {
 	concurrency int
 	nTry        int
 	closed      bool
+	c           *Config
 
 	md5 hash.Hash
 }
@@ -62,6 +64,7 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g.concurrency = c.Concurrency
 	g.q_wait = make(map[int]*chunk)
 	g.b = b
+	g.c = c
 
 	// get content length
 	r, err := http.NewRequest("HEAD", p_url.String(), nil)
@@ -187,18 +190,21 @@ func (g *getter) Read(p []byte) (int, error) {
 			return 0, err
 		}
 	}
-	n, err := g.cur_chunk.b.Read(p)
+
+	tr := io.TeeReader(g.cur_chunk.b, g.md5)
+	//n, err := g.cur_chunk.b.Read(p)
+	n, err := tr.Read(p)
 
 	// Empty buffer, move on to next
 	if err == io.EOF {
 		// Do not send EOF for each chunk.
 		if g.cur_chunk.id == g.chunk_total-1 && g.cur_chunk.b.Len() == 0 {
-			return 0, io.EOF
+			return n, err // end of stream, send eof
 		}
-		g.give <- g.cur_chunk.b
+		g.give <- g.cur_chunk.b // recycle buffer
 		g.cur_chunk = nil
 		g.cur_chunk_id++
-		return n - 1, nil
+		return n - 1, nil // subtract EOF
 	}
 	return n, err
 }
@@ -230,5 +236,37 @@ func (g *getter) Close() error {
 	close(g.get_ch)
 	g.closed = true
 	log.Println("makes:", g.makes)
+	if g.c.Md5Check {
+		if err := g.checkMd5(); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func (g *getter) checkMd5() (err error) {
+	calcMd5 := fmt.Sprintf("%x", g.md5.Sum(nil))
+	md5Path := fmt.Sprint(".md5", g.url.Path, ".md5")
+	md5Url := g.b.Url(md5Path, g.c)
+	r, err := http.NewRequest("GET", md5Url.String(), nil)
+	if err != nil {
+		return
+	}
+	log.Println("md5: ", calcMd5)
+	log.Println("md5Path: ", md5Path)
+	log.Println("md5Url: ", md5Url.String())
+	g.b.Sign(r)
+	resp, err := g.client.Do(r)
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return newRespError(resp)
+	}
+	givenMd5, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	if calcMd5 != string(givenMd5) {
+		return fmt.Errorf("MD5 mismatch. given:%s calculated:%s", givenMd5, calcMd5)
+	}
+	return
 }

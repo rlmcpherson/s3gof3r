@@ -80,16 +80,11 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 	if c.Client == nil {
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
-	var url_ *url.URL
-	url_, err = url.Parse(fmt.Sprintf("%s://%s.%s/%s", c.Scheme, b.Name, b.S3.Domain, path))
-	if err != nil {
-		return
-	}
 	log.Print("S3: ", b.S3)
 	log.Print("Bucket: ", b)
 	log.Print("Path: ", path)
-	log.Print("URL: ", url_)
-	return newGetter(*url_, c, b)
+	log.Print("URL: ", b.Url(path, c))
+	return newGetter(b.Url(path, c), c, b)
 }
 
 // Provides a writer to upload data as multipart upload requests.
@@ -104,20 +99,22 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 	if c.Client == nil {
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
-	var url_ *url.URL
-	url_, err = url.Parse(fmt.Sprintf("%s://%s.%s/%s", c.Scheme, b.Name, b.S3.Domain, path))
-	if err != nil {
-		return
-	}
 	log.Println("S3: ", b.S3)
 	log.Println("Bucket: ", b)
 	log.Println("Path: ", path)
-	log.Println("URL: ", url_)
+	log.Println("URL: ", b.Url(path, c))
 	log.Println("Header: ", h)
 	log.Println("Config: ", c)
-	return newPutter(*url_, h, c, b)
+	return newPutter(b.Url(path, c), h, c, b)
 }
 
+func (b *Bucket) Url(path string, c *Config) url.URL {
+	url_, err := url.Parse(fmt.Sprintf("%s://%s.%s/%s", c.Scheme, b.Name, b.S3.Domain, path))
+	if err != nil {
+		panic(err)
+	}
+	return *url_
+}
 func createClientWithTimeout(timeout time.Duration) *http.Client {
 	dialFunc := func(network, addr string) (net.Conn, error) {
 		c, err := net.DialTimeout(network, addr, timeout)

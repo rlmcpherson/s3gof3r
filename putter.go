@@ -47,7 +47,7 @@ type putter struct {
 	b           *Bucket
 	concurrency int
 	nTry        int
-	c           Config
+	c           *Config
 
 	bufsz      int64
 	buf        *bytes.Buffer
@@ -85,7 +85,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	p.b = b
 	p.concurrency = c.Concurrency
 	p.nTry = c.NTry
-	p.c = *c
+	p.c = c
 
 	p.bufsz = max64(minPartSize, c.PartSize)
 	r, err := http.NewRequest("POST", url.String()+"?uploads", nil)
@@ -341,12 +341,10 @@ func (p *putter) putMd5() (err error) {
 	calcMd5 := fmt.Sprintf("%x", p.md5.Sum(nil))
 	md5Reader := strings.NewReader(calcMd5)
 	md5Path := fmt.Sprint(".md5", p.url.Path, ".md5")
+	md5Url := p.b.Url(md5Path, p.c)
 	log.Println("md5: ", calcMd5)
 	log.Println("md5Path: ", md5Path)
-	md5Url, err := url.Parse(fmt.Sprintf("%s://%s.%s/%s", p.url.Scheme, p.b.Name, p.b.S3.Domain, md5Path))
-	if err != nil {
-		return
-	}
+	log.Println("md5Url: ", md5Url.String())
 	r, err := http.NewRequest("PUT", md5Url.String(), md5Reader)
 	if err != nil {
 		return
