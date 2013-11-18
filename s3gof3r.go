@@ -108,6 +108,7 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 	return newPutter(b.Url(path, c), h, c, b)
 }
 
+// Returns a parsed url to the given path, using the scheme specified in Config.Scheme
 func (b *Bucket) Url(path string, c *Config) url.URL {
 	url_, err := url.Parse(fmt.Sprintf("%s://%s.%s/%s", c.Scheme, b.Name, b.S3.Domain, path))
 	if err != nil {

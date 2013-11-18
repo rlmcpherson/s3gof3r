@@ -36,72 +36,40 @@ package main
 import (
 	"fmt"
 	"github.com/jessevdk/go-flags"
-	"github.com/rlmcpherson/s3gof3r"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"runtime/pprof"
 	"time"
 )
 
-func main() {
-
-	// set the number of processes to the number of cpus for parallelization of transfers
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	// Parse flags
-	if _, err := flags.Parse(&opts); err != nil {
-		log.Fatal(err)
-	}
-
-	if opts.Debug {
-		f, err := os.Create("cpuprofile.out")
-		if err != nil {
-			log.Fatal(err)
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-
-	start := time.Now()
-
-	if opts.Down && !opts.Up {
-		err := s3gof3r.Download(opts.Key, opts.Bucket, opts.FilePath, opts.Check, opts.Concurrency)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.Println("Download completed.")
-	} else if opts.Up {
-		err := s3gof3r.Upload(opts.Key, opts.Bucket, opts.FilePath, opts.Header, opts.Check, opts.Concurrency)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Println("Upload completed.")
-
-	} else {
-		log.Fatal("specify direction of transfer: up or down")
-	}
-	log.Println("Duration:", time.Since(start))
-	if opts.Debug {
-		debug()
-	}
-
+// Options common to both puts and gets
+type CommonOpts struct {
+	//Url         string      `short:"u" long:"url" description:"Url of S3 object"` //TODO: bring back url support
+	Key          string      `long:"key" description:"key of s3 object"`
+	Bucket       string      `long:"bucket" description:"s3 bucket"`
+	Header       http.Header `long:"header" short:"m" description:"HTTP headers"`
+	CheckDisable bool        `long:"md5Check-off" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets."`
+	Concurrency  int         `long:"concurrency" short:"c" default:"20" description:"Concurrency of transfers"`
+	PartSize     int64       `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20 MB"`
+	Debug        bool        `long:"debug" description:"Print debug statements and dump stacks."`
 }
 
-var opts struct {
-	Up          bool        `long:"up" description:"Upload to S3"`
-	Down        bool        `long:"down" description:"Download from S3"`
-	FilePath    string      `short:"f" long:"file_path" description:"Path to file. Stdout / Stdin are used if not specified. "`
-	Url         string      `short:"u" long:"url" description:"Url of S3 object"`
-	Key         string      `long:"key" description:"key of s3 object"`
-	Bucket      string      `long:"bucket" description:"s3 bucket"`
-	Header      http.Header `short:"h" long:"headers" description:"HTTP headers"`
-	Check       string      `short:"c" long:"check" description:"Use md5 hash checking to ensure data integrity. The md5 hash of is calculated concurrently during upload and stored at <bucket>.md5/<key>.md5." default:"true"`
-	Debug       bool        `long:"debug" description:"Print debug statements and dump stacks."`
-	Concurrency int         `long:"concurrency" short:"p" default:"20" description:"Print debug statements and dump stacks."`
+var parser = flags.NewParser(nil, flags.Default)
+
+func main() {
+
+	start := time.Now()
+	if _, err := parser.Parse(); err != nil {
+		os.Exit(1)
+	}
+	log.Println("Duration:", time.Since(start))
+}
+
+func init() {
+	// set the number of processes to the number of cpus for parallelization of transfers
+	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
 func debug() {
