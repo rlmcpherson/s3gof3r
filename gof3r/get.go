@@ -34,7 +34,11 @@ func (get *Get) Execute(args []string) (err error) {
 	}
 	w, err := os.Create(get.Path)
 	if err != nil {
-		return
+		if get.Path == "" {
+			w = os.Stdout
+		} else {
+			return
+		}
 	}
 	defer w.Close()
 	if _, err = io.Copy(w, r); err != nil {
@@ -51,7 +55,7 @@ func (get *Get) Execute(args []string) (err error) {
 }
 
 func init() {
-	get.Path = "/dev/stdout" // TODO: figure out how to use defaults in struct
+	// TODO: figure out how to use defaults in struct
 	get.Concurrency = s3gof3r.DefaultConfig.Concurrency
 	get.PartSize = s3gof3r.DefaultConfig.PartSize
 	parser = parser.AddCommand("get", "get (download) from S3", "get (download) from S3", &get)

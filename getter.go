@@ -254,12 +254,11 @@ func (g *getter) checkMd5() (err error) {
 	}
 	log.Println("md5: ", calcMd5)
 	log.Println("md5Path: ", md5Path)
-	log.Println("md5Url: ", md5Url.String())
 	g.b.Sign(r)
 	resp, err := g.client.Do(r)
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return newRespError(resp)
+		return fmt.Errorf("MD5 check failed: %s not found: %s", md5Url, newRespError(resp))
 	}
 	givenMd5, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

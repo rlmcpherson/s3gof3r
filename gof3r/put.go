@@ -15,7 +15,7 @@ type Put struct {
 
 var put Put
 
-func (put *Put) Execute(args []string) error {
+func (put *Put) Execute(args []string) (err error) {
 	conf := new(s3gof3r.Config)
 	conf = s3gof3r.DefaultConfig
 	k := s3gof3r.Keys{AccessKey: os.Getenv("AWS_ACCESS_KEY"),
@@ -35,27 +35,31 @@ func (put *Put) Execute(args []string) error {
 
 	w, err := b.PutWriter(put.Key, put.Header, conf)
 	if err != nil {
-		return err
+		return
 	}
 	r, err := os.Open(put.Path)
 	if err != nil {
-		return err
+		if get.Path == "" {
+			r = os.Stdin
+		} else {
+			return
+		}
 	}
 	defer r.Close()
 	if _, err = io.Copy(w, r); err != nil {
 		return err
 	}
-	if err := w.Close(); err != nil {
-		return err
+	if err = w.Close(); err != nil {
+		return
 	}
 	if put.Debug {
 		debug()
 	}
-	return nil
+	return
 }
 
 func init() {
-	put.Path = "/dev/stdin" // TODO: figure out how to use defaults in struct
+	// TODO: figure out how to use defaults in struct
 	put.Concurrency = s3gof3r.DefaultConfig.Concurrency
 	put.PartSize = s3gof3r.DefaultConfig.PartSize
 	parser = parser.AddCommand("put", "put (upload) to S3", "put (upload)to S3", &put)

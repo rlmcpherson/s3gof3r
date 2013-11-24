@@ -51,7 +51,7 @@ var DefaultDomain = "s3.amazonaws.com"
 // http client timeout settings
 const (
 	clientDialTimeout     = 2 * time.Second
-	responseHeaderTimeout = 5 * time.Second
+	responseHeaderTimeout = 20 * time.Second
 )
 
 // Returns a new S3
@@ -80,10 +80,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 	if c.Client == nil {
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
-	log.Print("S3: ", b.S3)
-	log.Print("Bucket: ", b)
-	log.Print("Path: ", path)
-	log.Print("URL: ", b.Url(path, c))
+	log.Println("Config: ", c)
 	return newGetter(b.Url(path, c), c, b)
 }
 
@@ -99,11 +96,7 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 	if c.Client == nil {
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
-	log.Println("S3: ", b.S3)
-	log.Println("Bucket: ", b)
-	log.Println("Path: ", path)
-	log.Println("URL: ", b.Url(path, c))
-	log.Println("Header: ", h)
+	log.Println("Headers: ", h)
 	log.Println("Config: ", c)
 	return newPutter(b.Url(path, c), h, c, b)
 }

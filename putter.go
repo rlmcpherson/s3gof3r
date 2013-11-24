@@ -344,7 +344,6 @@ func (p *putter) putMd5() (err error) {
 	md5Url := p.b.Url(md5Path, p.c)
 	log.Println("md5: ", calcMd5)
 	log.Println("md5Path: ", md5Path)
-	log.Println("md5Url: ", md5Url.String())
 	r, err := http.NewRequest("PUT", md5Url.String(), md5Reader)
 	if err != nil {
 		return
