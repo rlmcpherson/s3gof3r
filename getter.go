@@ -129,6 +129,7 @@ func (g *getter) retryGetChunk(c *chunk) {
 		if err == nil {
 			return
 		}
+		log.Printf("Error on attempt %d: retrying chunk: %v, Error: %s", i, c, err)
 	}
 	g.err = err
 }
@@ -154,6 +155,7 @@ func (g *getter) getChunk(c *chunk) error {
 	if err != nil {
 		return err
 	}
+	//r.Close = true
 	r.Header = c.header
 	g.b.Sign(r)
 	resp, err := g.client.Do(r)
@@ -190,7 +192,7 @@ func (g *getter) Read(p []byte) (int, error) {
 			return 0, err
 		}
 	}
-
+	// write to md5 hash in parallel with output
 	tr := io.TeeReader(g.cur_chunk.b, g.md5)
 	//n, err := g.cur_chunk.b.Read(p)
 	n, err := tr.Read(p)

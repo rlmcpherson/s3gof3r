@@ -19,7 +19,7 @@ type Keys struct {
 }
 
 type S3 struct {
-	Domain string // The service's domain. Defaults to "s3.amazonaws.com"
+	Domain string // The s3-compatible service domain. Defaults to "s3.amazonaws.com"
 	Keys
 }
 
@@ -39,7 +39,7 @@ type Config struct {
 
 // Defaults
 var DefaultConfig = &Config{
-	Concurrency: 30,
+	Concurrency: 20,
 	PartSize:    20 * mb,
 	NTry:        5,
 	Md5Check:    true,
@@ -51,7 +51,7 @@ var DefaultDomain = "s3.amazonaws.com"
 // http client timeout settings
 const (
 	clientDialTimeout     = 2 * time.Second
-	responseHeaderTimeout = 20 * time.Second
+	responseHeaderTimeout = 10 * time.Second
 )
 
 // Returns a new S3
@@ -80,7 +80,6 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 	if c.Client == nil {
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
-	log.Println("Config: ", c)
 	return newGetter(b.Url(path, c), c, b)
 }
 
@@ -96,8 +95,6 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 	if c.Client == nil {
 		c.Client = createClientWithTimeout(clientDialTimeout)
 	}
-	log.Println("Headers: ", h)
-	log.Println("Config: ", c)
 	return newPutter(b.Url(path, c), h, c, b)
 }
 
@@ -113,8 +110,7 @@ func createClientWithTimeout(timeout time.Duration) *http.Client {
 	dialFunc := func(network, addr string) (net.Conn, error) {
 		c, err := net.DialTimeout(network, addr, timeout)
 		if err != nil {
-			log.Print(err) // for debugging
-			return nil, err
+			log.Println(err) // debugging
 		}
 		return c, nil
 	}
@@ -123,7 +119,6 @@ func createClientWithTimeout(timeout time.Duration) *http.Client {
 		Transport: &http.Transport{
 			Dial: dialFunc,
 			ResponseHeaderTimeout: responseHeaderTimeout,
-			//MaxIdleConnsPerHost:   5,
 		},
 	}
 }

@@ -182,7 +182,7 @@ func (p *putter) retryUploadPart(part *part) {
 			p.give <- part.b
 			return
 		}
-		log.Print(err)
+		log.Printf("Error on attempt %d: Retrying part: %v, Error: %s", i, part, err)
 	}
 	p.err = err
 }
@@ -236,8 +236,7 @@ func (p *putter) Close() error {
 		}
 		return p.err
 	}
-	log.Println("Makes: ", p.makes, "Max queue length: ", q_len_max)
-
+	log.Println("makes:", p.makes)
 	body, err := xml.Marshal(p.xml)
 	if err != nil {
 		return err
@@ -306,6 +305,7 @@ func (p *putter) abort() (err error) {
 	}
 	return nil
 }
+
 func (p *putter) get_buffer() *bytes.Buffer {
 	var b *bytes.Buffer
 	if p.makes < p.concurrency*2 && len(p.get) == 0 {
