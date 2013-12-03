@@ -26,10 +26,6 @@ func (get *Get) Execute(args []string) (err error) {
 	conf.PartSize = get.PartSize
 	conf.Md5Check = !get.CheckDisable
 	log.Println("GET: ", get)
-	r, header, err := b.GetReader(get.Key, conf)
-	if err != nil {
-		return
-	}
 	w, err := os.Create(get.Path)
 	if err != nil {
 		if get.Path == "" {
@@ -39,6 +35,10 @@ func (get *Get) Execute(args []string) (err error) {
 		}
 	}
 	defer w.Close()
+	r, header, err := b.GetReader(get.Key, conf)
+	if err != nil {
+		return
+	}
 	if _, err = io.Copy(w, r); err != nil {
 		return
 	}

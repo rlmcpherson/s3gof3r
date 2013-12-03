@@ -32,10 +32,6 @@ func (put *Put) Execute(args []string) (err error) {
 		put.Header = make(http.Header)
 	}
 
-	w, err := b.PutWriter(put.Key, put.Header, conf)
-	if err != nil {
-		return
-	}
 	r, err := os.Open(put.Path)
 	if err != nil {
 		if get.Path == "" {
@@ -45,8 +41,12 @@ func (put *Put) Execute(args []string) (err error) {
 		}
 	}
 	defer r.Close()
+	w, err := b.PutWriter(put.Key, put.Header, conf)
+	if err != nil {
+		return
+	}
 	if _, err = io.Copy(w, r); err != nil {
-		return err
+		return
 	}
 	if err = w.Close(); err != nil {
 		return
@@ -61,6 +61,7 @@ func init() {
 	// TODO: figure out how to use defaults in struct
 	put.Concurrency = s3gof3r.DefaultConfig.Concurrency
 	put.PartSize = s3gof3r.DefaultConfig.PartSize
+	put.Path = "/dev/stdin"
 	_, err := parser.AddCommand("put", "put (upload) to S3", "put (upload)to S3", &put)
 	if err != nil {
 		log.Fatal(err)
