@@ -9,7 +9,8 @@ import (
 )
 
 type Put struct {
-	Path string `short:"f" long:"path" description:"Path to file. Defaults to standard input for streaming." default:"/dev/stdin"`
+	Path   string      `short:"p" long:"path" description:"Path to file. Defaults to standard input for streaming." default:"/dev/stdin"`
+	Header http.Header `long:"header" short:"m" description:"HTTP headers"`
 	CommonOpts
 }
 

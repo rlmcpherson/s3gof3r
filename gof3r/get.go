@@ -8,7 +8,7 @@ import (
 )
 
 type Get struct {
-	Path string `short:"f" long:"path" description:"Path to file. Defaults to standard output for streaming." default:"/dev/stdout"`
+	Path string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming." default:"/dev/stdout"`
 	CommonOpts
 }
 

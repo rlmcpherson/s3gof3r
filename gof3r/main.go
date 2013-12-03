@@ -1,38 +1,69 @@
 // Command gof3r is a command-line interface for s3gof3r: fast, concurrent, streaming access to Amazon S3.
 //
 // Usage:
+//   To stream up to S3:
+//      $  <input_stream> | gof3r put -b <bucket> -k <s3_path>
+//   To stream down from S3:
+//      $ gof3r get -b <bucket> -k <s3_path> | <output_stream>
 //   To upload a file to S3:
-//      gof3r  put --buckt=<bucket> --key=<path> -h<http_header1> -h<http_header2>...
+//      $ gof3r  put --path=<local_path> --bucket=<bucket> --key=<s3_path> -m<http_header1> -m<http_header2>...
 //   To download a file from S3:
-//      gof3r  --down --file_path=<file_path> --url=<public_url>
+//      $ gof3r  get --bucket=<bucket> --key=<path>
 //
 //
-//   Examples:
-//     $ gof3r  --up --file_path=test_file --url=https://bucket1.s3.amazonaws.com/object -hx-amz-meta-custom-metadata:123 -hx-amz-meta-custom-metadata2:123abc -hx-amz-server-side-encryption:AES256 -hx-amz-storage-class:STANDARD
-//     $ gof3r  --down --file_path=test_file --url=https://bucket1.s3.amazonaws.com/object
-//
-// Set Environment Variables:
+// Set AWS keys as environment Variables (required):
 //
 //  $ export AWS_ACCESS_KEY_ID=<access_key>
 //  $ export AWS_SECRET_ACCESS_KEY=<secret_key>
 //
-// AwS_ACCESS_KEY – an AWS Access Key Id (required)
+// Examples:
+//  $ tar -cf - /foo_dir/ | gof3r put -b my_s3_bucket -k bar_dir/s3_object -m x-amz-meta-custom-metadata:abc123 -m x-amz-server-side-encryption:AES256
+//  $ gof3r get -b my_s3_bucket -k bar_dir/s3_object | tar -x
 //
-// AWS_SECRET_KEY – an AWS Secret Access Key (required)
 //
-// Complete Usage:
-//  gof3r [OPTIONS]
+// Complete Usage: get command:
+//   gof3r [OPTIONS] get [get-OPTIONS]
 //
-// Help Options:
-//  -h, --help=      Show this help message
+//   get (download) from S3
 //
-// Application Options:
-//      --up         Upload to S3
-//      --down       Download from S3
-//  -f, --file_path= canonical path to file
-//  -u, --url=       Url of S3 object
-//  -h, --headers=   HTTP headers ({})
-//  -c, --md5-checking   Verify integrity with  md5 checksum
+//   Help Options:
+//   -h, --help          Show this help message
+//
+//   get (download) from S3:
+//   -p, --path=         Path to file. Defaults to standard output for streaming. (/dev/stdout)
+//   -k, --key=          key of s3 object
+//   -b, --bucket=       s3 bucket
+//   --md5Check-off      Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently
+//                       during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
+//   -c, --concurrency=  Concurrency of transfers (20)
+//   -s, --partsize=     initial size of concurrent parts, in bytes (20 MB)
+//   --debug             Print debug statements and dump stacks.
+//
+//   Help Options:
+//   -h, --help          Show this help message
+//
+//
+// Complete Usage: put command:
+//   gof3r [OPTIONS] put [put-OPTIONS]
+//
+//   put (upload)to S3
+//
+//   Help Options:
+//     -h, --help          Show this help message
+//
+//   put (upload) to S3:
+//     -p, --path=         Path to file. Defaults to standard input for streaming. (/dev/stdin)
+//     -m, --header=       HTTP headers
+//     -k, --key=          key of s3 object
+//     -b, --bucket=       s3 bucket
+//         --md5Check-off  Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently
+//                         during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
+//     -c, --concurrency=  Concurrency of transfers (20)
+//     -s, --partsize=     initial size of concurrent parts, in bytes (20 MB)
+//         --debug         Print debug statements and dump stacks.
+//
+//   Help Options:
+//     -h, --help          Show this help message
 package main
 
 import (
@@ -40,7 +71,6 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/rlmcpherson/s3gof3r"
 	"log"
-	"net/http"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -50,13 +80,12 @@ import (
 // Options common to both puts and gets
 type CommonOpts struct {
 	//Url         string      `short:"u" long:"url" description:"Url of S3 object"` //TODO: bring back url support
-	Key          string      `long:"key" description:"key of s3 object" required:"true"`
-	Bucket       string      `long:"bucket" description:"s3 bucket" required:"true"`
-	Header       http.Header `long:"header" short:"m" description:"HTTP headers"`
-	CheckDisable bool        `long:"md5Check-off" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets."`
-	Concurrency  int         `long:"concurrency" short:"c" default:"20" description:"Concurrency of transfers"`
-	PartSize     int64       `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20 MB"`
-	Debug        bool        `long:"debug" description:"Print debug statements and dump stacks."`
+	Key          string `long:"key" short:"k" description:"key of s3 object" required:"true"`
+	Bucket       string `long:"bucket" short:"b" description:"s3 bucket" required:"true"`
+	CheckDisable bool   `long:"md5Check-off" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets."`
+	Concurrency  int    `long:"concurrency" short:"c" default:"20" description:"Concurrency of transfers"`
+	PartSize     int64  `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20 MB"`
+	Debug        bool   `long:"debug" description:"Print debug statements and dump stacks."`
 }
 
 var parser = flags.NewParser(nil, flags.Default)
