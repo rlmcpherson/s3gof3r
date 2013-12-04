@@ -50,7 +50,7 @@ var DefaultDomain = "s3.amazonaws.com"
 
 // http client timeout settings
 const (
-	clientDialTimeout     = 2 * time.Second
+	clientDialTimeout     = 5 * time.Second
 	responseHeaderTimeout = 10 * time.Second
 )
 
