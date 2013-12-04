@@ -41,7 +41,7 @@ type Config struct {
 var DefaultConfig = &Config{
 	Concurrency: 20,
 	PartSize:    20 * mb,
-	NTry:        5,
+	NTry:        10,
 	Md5Check:    true,
 	Scheme:      "https",
 }
