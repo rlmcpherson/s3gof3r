@@ -4,7 +4,6 @@ package s3gof3r
 import (
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -50,8 +49,8 @@ var DefaultDomain = "s3.amazonaws.com"
 
 // http client timeout settings
 const (
-	clientDialTimeout     = 5 * time.Second
-	responseHeaderTimeout = 10 * time.Second
+	clientDialTimeout     = 2 * time.Second
+	responseHeaderTimeout = 5 * time.Second
 )
 
 // Returns a new S3
@@ -110,7 +109,7 @@ func createClientWithTimeout(timeout time.Duration) *http.Client {
 	dialFunc := func(network, addr string) (net.Conn, error) {
 		c, err := net.DialTimeout(network, addr, timeout)
 		if err != nil {
-			log.Println(err) // debugging
+			return nil, err
 		}
 		return c, nil
 	}
