@@ -65,6 +65,8 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g.q_wait = make(map[int]*chunk)
 	g.b = b
 	g.c = c
+	g.client = c.Client
+	g.md5 = md5.New()
 
 	// get content length
 	r, err := http.NewRequest("HEAD", p_url.String(), nil)
@@ -72,9 +74,8 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 		return nil, nil, err
 	}
 	g.b.Sign(r)
-	g.client = c.Client
-	resp, err := g.client.Do(r)
-	g.md5 = md5.New()
+	resp, err := retryRequest(r, g.client, g.nTry)
+	defer resp.Body.Close()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -159,10 +160,10 @@ func (g *getter) getChunk(c *chunk) error {
 	r.Header = c.header
 	g.b.Sign(r)
 	resp, err := g.client.Do(r)
+	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != 206 {
 		return newRespError(resp)
 	}
@@ -257,8 +258,11 @@ func (g *getter) checkMd5() (err error) {
 	log.Println("md5: ", calcMd5)
 	log.Println("md5Path: ", md5Path)
 	g.b.Sign(r)
-	resp, err := g.client.Do(r)
+	resp, err := retryRequest(r, g.client, g.nTry)
 	defer resp.Body.Close()
+	if err != nil {
+		return
+	}
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("MD5 check failed: %s not found: %s", md5Url, newRespError(resp))
 	}

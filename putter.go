@@ -98,7 +98,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 		}
 	}
 	p.b.Sign(r)
-	resp, err := p.client.Do(r)
+	resp, err := retryRequest(r, p.client, p.nTry)
 	if err != nil {
 		return nil, err
 	}
@@ -200,10 +200,10 @@ func (p *putter) putPart(part *part) error {
 	req.Header.Set(md5Header, part.contentMd5)
 	p.b.Sign(req)
 	resp, err := p.client.Do(req)
+	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
 	}
@@ -249,14 +249,14 @@ func (p *putter) Close() error {
 		return err
 	}
 	p.b.Sign(req)
-	resp, err := p.client.Do(req)
+	resp, err := retryRequest(req, p.client, p.nTry)
+	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
 	}
-	defer resp.Body.Close()
 	// Check md5 hash of concatenated part md5 hashes against ETag
 	// more info: https://forums.aws.amazon.com/thread.jspa?messageID=456442&#456442
 	calculatedMd5ofParts := fmt.Sprintf("%x", p.md5OfParts.Sum(nil))
@@ -292,18 +292,18 @@ func (p *putter) abort() (err error) {
 	s := p.url.String() + "?" + v.Encode()
 	req, err := http.NewRequest("DELETE", s, nil)
 	if err != nil {
-		return err
+		return
 	}
 	p.b.Sign(req)
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return err
-	}
+	resp, err := retryRequest(req, p.client, p.nTry)
 	defer resp.Body.Close()
+	if err != nil {
+		return
+	}
 	if resp.StatusCode != 204 {
 		return newRespError(resp)
 	}
-	return nil
+	return
 }
 
 func (p *putter) get_buffer() *bytes.Buffer {
@@ -349,8 +349,11 @@ func (p *putter) putMd5() (err error) {
 		return
 	}
 	p.b.Sign(r)
-	resp, err := p.client.Do(r)
+	resp, err := retryRequest(r, p.client, p.nTry)
 	defer resp.Body.Close()
+	if err != nil {
+		return
+	}
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
 	}

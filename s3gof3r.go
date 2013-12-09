@@ -49,7 +49,7 @@ var DefaultDomain = "s3.amazonaws.com"
 
 // http client timeout settings
 const (
-	clientDialTimeout     = 2 * time.Second
+	clientDialTimeout     = 5 * time.Second
 	responseHeaderTimeout = 5 * time.Second
 )
 
@@ -106,17 +106,11 @@ func (b *Bucket) Url(path string, c *Config) url.URL {
 	return *url_
 }
 func createClientWithTimeout(timeout time.Duration) *http.Client {
-	dialFunc := func(network, addr string) (net.Conn, error) {
-		c, err := net.DialTimeout(network, addr, timeout)
-		if err != nil {
-			return nil, err
-		}
-		return c, nil
-	}
 
+	dialer := &net.Dialer{Timeout: timeout}
 	return &http.Client{
 		Transport: &http.Transport{
-			Dial: dialFunc,
+			Dial: dialer.Dial,
 			ResponseHeaderTimeout: responseHeaderTimeout,
 		},
 	}
