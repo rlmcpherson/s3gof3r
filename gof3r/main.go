@@ -85,6 +85,7 @@ type CommonOpts struct {
 	CheckDisable bool   `long:"md5Check-off" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets."`
 	Concurrency  int    `long:"concurrency" short:"c" default:"20" description:"Concurrency of transfers"`
 	PartSize     int64  `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20 MB"`
+	EndPoint     string `long:"endpoint" description:"Amazon S3 endpoint" default:"s3.amazonaws.com"`
 	Debug        bool   `long:"debug" description:"Print debug statements and dump stacks."`
 }
 
