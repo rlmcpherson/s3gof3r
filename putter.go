@@ -88,17 +88,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	p.c = c
 
 	p.bufsz = max64(minPartSize, c.PartSize)
-	r, err := http.NewRequest("POST", url.String()+"?uploads", nil)
-	if err != nil {
-		return nil, err
-	}
-	for k := range h {
-		for _, v := range h[k] {
-			r.Header.Add(k, v)
-		}
-	}
-	p.b.Sign(r)
-	resp, err := retryRequest(r, p.client, p.nTry)
+	resp, err := p.retryRequest("POST", url.String()+"?uploads", nil, h)
 	if err != nil {
 		return nil, err
 	}
@@ -200,10 +190,10 @@ func (p *putter) putPart(part *part) error {
 	req.Header.Set(md5Header, part.contentMd5)
 	p.b.Sign(req)
 	resp, err := p.client.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
 	}
@@ -215,7 +205,7 @@ func (p *putter) putPart(part *part) error {
 	return nil
 }
 
-func (p *putter) Close() error {
+func (p *putter) Close() (err error) {
 	if p.closed {
 		return syscall.EINVAL
 	}
@@ -237,23 +227,19 @@ func (p *putter) Close() error {
 		return p.err
 	}
 	log.Println("makes:", p.makes)
+	// Complete Multipart upload
 	body, err := xml.Marshal(p.xml)
 	if err != nil {
-		return err
+		return
 	}
-	b := bytes.NewBuffer(body)
+	b := bytes.NewReader(body)
 	v := url.Values{}
 	v.Set("uploadId", p.UploadId)
-	req, err := http.NewRequest("POST", p.url.String()+"?"+v.Encode(), b)
+	resp, err := p.retryRequest("POST", p.url.String()+"?"+v.Encode(), b, nil)
 	if err != nil {
-		return err
+		return
 	}
-	p.b.Sign(req)
-	resp, err := retryRequest(req, p.client, p.nTry)
 	defer resp.Body.Close()
-	if err != nil {
-		return err
-	}
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
 	}
@@ -263,7 +249,7 @@ func (p *putter) Close() error {
 	// Parse etag from body of response
 	err = xml.NewDecoder(resp.Body).Decode(p)
 	if err != nil {
-		return err
+		return
 	}
 	// strip part count from end and '"' from front.
 	remoteMd5ofParts := strings.Split(p.ETag, "-")[0]
@@ -279,27 +265,25 @@ func (p *putter) Close() error {
 	//log.Println("Hash from multipart complete header:", remoteMd5ofParts)
 	//log.Println("Calculated multipart hash:", calculatedMd5ofParts)
 	if p.c.Md5Check {
-		if err := p.putMd5(); err != nil {
-			return err
+		for i := 0; i < p.nTry; i++ {
+			if err = p.putMd5(); err == nil {
+				break
+			}
 		}
+		return
 	}
-	return nil
+	return
 }
 
 func (p *putter) abort() (err error) {
 	v := url.Values{}
 	v.Set("uploadId", p.UploadId)
 	s := p.url.String() + "?" + v.Encode()
-	req, err := http.NewRequest("DELETE", s, nil)
+	resp, err := p.retryRequest("DELETE", s, nil, nil)
 	if err != nil {
 		return
 	}
-	p.b.Sign(req)
-	resp, err := retryRequest(req, p.client, p.nTry)
 	defer resp.Body.Close()
-	if err != nil {
-		return
-	}
 	if resp.StatusCode != 204 {
 		return newRespError(resp)
 	}
@@ -349,13 +333,39 @@ func (p *putter) putMd5() (err error) {
 		return
 	}
 	p.b.Sign(r)
-	resp, err := retryRequest(r, p.client, p.nTry)
-	defer resp.Body.Close()
+	resp, err := p.client.Do(r)
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
+	}
+	return
+}
+
+func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.Header) (resp *http.Response, err error) {
+	for i := 0; i < p.nTry; i++ {
+		var req *http.Request
+		req, err = http.NewRequest(method, urlStr, body)
+		if err != nil {
+			return
+		}
+		for k := range h {
+			for _, v := range h[k] {
+				req.Header.Add(k, v)
+			}
+		}
+
+		p.b.Sign(req)
+		resp, err = p.client.Do(req)
+		if err == nil {
+			return
+		}
+		log.Println(err)
+		if body != nil {
+			body.Seek(0, 0)
+		}
 	}
 	return
 }

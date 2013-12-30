@@ -89,14 +89,3 @@ func bucketFromUrl(subdomain string) string {
 	s := strings.Split(subdomain, ".")
 	return strings.Join(s[:len(s)-1], ".")
 }
-
-func retryRequest(r *http.Request, client *http.Client, attempts int) (resp *http.Response, err error) {
-	for i := 0; i < attempts; i++ {
-		resp, err = client.Do(r)
-		if err == nil {
-			return
-		}
-		log.Println(err)
-	}
-	return
-}

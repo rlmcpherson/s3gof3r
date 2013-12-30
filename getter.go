@@ -69,16 +69,11 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g.md5 = md5.New()
 
 	// get content length
-	r, err := http.NewRequest("HEAD", p_url.String(), nil)
+	resp, err := g.retryRequest("HEAD", p_url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	g.b.Sign(r)
-	resp, err := retryRequest(r, g.client, g.nTry)
 	defer resp.Body.Close()
-	if err != nil {
-		return nil, nil, err
-	}
 	if resp.StatusCode != 200 {
 		return nil, nil, newRespError(resp)
 	}
@@ -92,6 +87,26 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	}
 	go g.init_chunks()
 	return g, resp.Header, nil
+}
+
+func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *http.Response, err error) {
+	for i := 0; i < g.nTry; i++ {
+		var req *http.Request
+		req, err = http.NewRequest(method, urlStr, body)
+		if err != nil {
+			return
+		}
+		g.b.Sign(req)
+		resp, err = g.client.Do(req)
+		if err == nil {
+			return
+		}
+		log.Println(err)
+		if body != nil {
+			body.Seek(0, 0)
+		}
+	}
+	return
 }
 
 func (g *getter) init_chunks() {
@@ -160,10 +175,10 @@ func (g *getter) getChunk(c *chunk) error {
 	r.Header = c.header
 	g.b.Sign(r)
 	resp, err := g.client.Do(r)
-	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 206 {
 		return newRespError(resp)
 	}
@@ -251,20 +266,15 @@ func (g *getter) checkMd5() (err error) {
 	calcMd5 := fmt.Sprintf("%x", g.md5.Sum(nil))
 	md5Path := fmt.Sprint(".md5", g.url.Path, ".md5")
 	md5Url := g.b.Url(md5Path, g.c)
-	r, err := http.NewRequest("GET", md5Url.String(), nil)
-	if err != nil {
-		return
-	}
 	log.Println("md5: ", calcMd5)
 	log.Println("md5Path: ", md5Path)
-	g.b.Sign(r)
-	resp, err := retryRequest(r, g.client, g.nTry)
-	defer resp.Body.Close()
+	resp, err := g.retryRequest("GET", md5Url.String(), nil)
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("MD5 check failed: %s not found: %s", md5Url, newRespError(resp))
+		return fmt.Errorf("MD5 check failed: %s not found: %s", md5Url.String(), newRespError(resp))
 	}
 	givenMd5, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
