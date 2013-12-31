@@ -22,7 +22,7 @@ import (
 // defined by amazon
 const (
 	minPartSize = 5 * mb
-	maxPartSize = 5 * gb // for 32-bit use; amz max is 5GiB
+	maxPartSize = 5 * gb
 	maxObjSize  = 5 * tb
 	maxNPart    = 10000
 	md5Header   = "content-md5"
