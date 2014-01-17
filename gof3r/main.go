@@ -67,14 +67,14 @@
 package main
 
 import (
-	"fmt"
-	"github.com/jessevdk/go-flags"
-	"github.com/rlmcpherson/s3gof3r"
 	"log"
 	"os"
 	"runtime"
 	"runtime/pprof"
 	"time"
+
+	"github.com/jessevdk/go-flags"
+	"github.com/rlmcpherson/s3gof3r"
 )
 
 // Options common to both puts and gets
@@ -84,7 +84,7 @@ type CommonOpts struct {
 	Bucket       string `long:"bucket" short:"b" description:"s3 bucket" required:"true"`
 	CheckDisable bool   `long:"md5Check-off" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets."`
 	Concurrency  int    `long:"concurrency" short:"c" default:"20" description:"Concurrency of transfers"`
-	PartSize     int64  `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20 MB"`
+	PartSize     int64  `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20971520"`
 	EndPoint     string `long:"endpoint" description:"Amazon S3 endpoint" default:"s3.amazonaws.com"`
 	Debug        bool   `long:"debug" description:"Print debug statements and dump stacks."`
 }
@@ -94,6 +94,9 @@ var parser = flags.NewParser(nil, flags.Default)
 func main() {
 	// set the number of processors to use to the number of cpus for parallelization of concurrent transfers
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	//	f, _ := os.Create("cpuprofile.out")
+	//	pprof.StartCPUProfile(f)
+	//	defer pprof.StopCPUProfile()
 
 	// parser calls the Execute functions on Get and Put, after parsing the command line options.
 	start := time.Now()
@@ -111,25 +114,26 @@ func getKeys() s3gof3r.Keys {
 }
 
 func debug() {
+	log.Println("Running debug report...")
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	log.Println("MEMORY STATS")
-	log.Println(fmt.Printf("%d,%d,%d,%d\n", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased))
+	log.Printf("%d,%d,%d,%d\n", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased)
 	log.Println("NUM CPU:", runtime.NumCPU())
 
 	//profiling
 	f, err := os.Create("memprofileup.out")
-	fg, err := os.Create("goprof.out")
-	fb, err := os.Create("blockprof.out")
+	defer f.Close()
+	//	fg, err := os.Create("goprof.out")
+	//	fb, err := os.Create("blockprof.out")
 	if err != nil {
 		log.Fatal(err)
 	}
 	pprof.WriteHeapProfile(f)
-	pprof.Lookup("goroutine").WriteTo(fg, 0)
-	pprof.Lookup("block").WriteTo(fb, 0)
+	//	pprof.Lookup("goroutine").WriteTo(fg, 0)
+	//	pprof.Lookup("block").WriteTo(fb, 0)
 	f.Close()
-	fg.Close()
-	fb.Close()
-	time.Sleep(1 * time.Second)
-	panic("Dump the stacks:")
+	//	fg.Close()
+	//	fb.Close()
+	//	panic("Dump the stacks:")
 }

@@ -29,9 +29,9 @@ type getter struct {
 	read_ch        chan *chunk
 	get_ch         chan *chunk
 
-	get   chan *bytes.Buffer
-	give  chan *bytes.Buffer
-	makes int
+	//	get   chan *bytes.Buffer
+	//	give  chan *bytes.Buffer
+	bp *bp
 
 	q_wait map[int]*chunk
 
@@ -57,11 +57,9 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g := new(getter)
 	g.url = p_url
 	g.bufsz = c.PartSize
-	//g.bp.get, g.bp.give = makeRecycler()
 	g.get_ch = make(chan *chunk)
 	g.read_ch = make(chan *chunk)
 	g.nTry = c.NTry
-	g.concurrency = c.Concurrency
 	g.q_wait = make(map[int]*chunk)
 	g.b = b
 	g.c = c
@@ -78,9 +76,14 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 		return nil, nil, newRespError(resp)
 	}
 	g.content_length = resp.ContentLength
-	g.concurrency = int(min64(int64(g.concurrency), (g.content_length/g.bufsz))) + 1
+	g.chunk_total = int((g.content_length + g.bufsz - 1) / g.bufsz) // round up, integer division
+	g.concurrency = min(c.Concurrency, g.chunk_total)
+	log.Println("chunk total: ", g.chunk_total)
+	log.Println("content length : ", g.content_length)
+	log.Println("concurrency: ", g.concurrency)
+
 	//start buffer pool with size of concurrency
-	g.get, g.give = startBufferPool(g.concurrency * 2)
+	g.bp = NewBufferPool(g.bufsz, g.concurrency*3)
 
 	for i := 0; i < g.concurrency; i++ {
 		go g.worker()
@@ -110,10 +113,11 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 }
 
 func (g *getter) init_chunks() {
+	id := 0
 	for i := int64(0); i < g.content_length; {
 		size := min64(g.bufsz, g.content_length-i)
 		c := &chunk{
-			id: g.chunk_total,
+			id: id,
 			header: http.Header{
 				"Range": {fmt.Sprintf("bytes=%d-%d",
 					i, i+size-1)},
@@ -123,10 +127,11 @@ func (g *getter) init_chunks() {
 			b:     nil,
 			len:   0}
 		i += size
-		g.chunk_total++
+		id++
 		g.wg.Add(1)
 		g.get_ch <- c
 	}
+	close(g.get_ch)
 }
 
 func (g *getter) worker() {
@@ -139,7 +144,7 @@ func (g *getter) worker() {
 func (g *getter) retryGetChunk(c *chunk) {
 	defer g.wg.Done()
 	var err error
-	c.b = g.get_buffer()
+	c.b = <-g.bp.get
 	for i := 0; i < g.nTry; i++ {
 		err = g.getChunk(c)
 		if err == nil {
@@ -148,19 +153,6 @@ func (g *getter) retryGetChunk(c *chunk) {
 		log.Printf("Error on attempt %d: retrying chunk: %v, Error: %s", i, c, err)
 	}
 	g.err = err
-}
-
-func (g *getter) get_buffer() *bytes.Buffer {
-	var b *bytes.Buffer
-	if g.makes < g.concurrency*2 && len(g.get) == 0 {
-		size := g.bufsz + 1*kb
-		s := make([]byte, 0, size)
-		b = bytes.NewBuffer(s)
-		g.makes++
-	} else {
-		b = <-g.get
-	}
-	return b
 }
 
 func (g *getter) getChunk(c *chunk) error {
@@ -203,10 +195,7 @@ func (g *getter) Read(p []byte) (int, error) {
 		return 0, g.err
 	}
 	if g.cur_chunk == nil {
-		g.cur_chunk, err = g.get_cur_chunk()
-		if err != nil {
-			return 0, err
-		}
+		g.cur_chunk = g.find_next_chunk()
 	}
 	// write to md5 hash in parallel with output
 	tr := io.TeeReader(g.cur_chunk.b, g.md5)
@@ -219,7 +208,7 @@ func (g *getter) Read(p []byte) (int, error) {
 		if g.cur_chunk.id == g.chunk_total-1 && g.cur_chunk.b.Len() == 0 {
 			return n, err // end of stream, send eof
 		}
-		g.give <- g.cur_chunk.b // recycle buffer
+		g.bp.give <- g.cur_chunk.b // recycle buffer
 		g.cur_chunk = nil
 		g.cur_chunk_id++
 		return n - 1, nil // subtract EOF
@@ -227,18 +216,16 @@ func (g *getter) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (g *getter) get_cur_chunk() (*chunk, error) {
-	var cur_chunk *chunk
-	var err error
+func (g *getter) find_next_chunk() (cur_chunk *chunk) {
 	for {
 		// first check q_wait
 		if cur_chunk, ok := g.q_wait[g.cur_chunk_id]; ok {
 			delete(g.q_wait, g.cur_chunk_id)
-			return cur_chunk, err
+			return cur_chunk
 		}
-		// if not present, read from channel
-		cur_chunk = <-g.read_ch
-		g.q_wait[cur_chunk.id] = cur_chunk
+		// if next chunk not in q_wait, read from channel
+		c := <-g.read_ch
+		g.q_wait[c.id] = c
 	}
 }
 
@@ -251,9 +238,8 @@ func (g *getter) Close() error {
 	}
 	g.wg.Wait()
 	close(g.read_ch)
-	close(g.get_ch)
 	g.closed = true
-	log.Println("makes:", g.makes)
+	log.Println("makes:", g.bp.makes)
 	if g.c.Md5Check {
 		if err := g.checkMd5(); err != nil {
 			return err

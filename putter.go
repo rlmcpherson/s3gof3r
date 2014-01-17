@@ -107,7 +107,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	p.md5OfParts = md5.New()
 	p.md5 = md5.New()
 	//p.get, p.give = p.makeRecycler()
-	p.get, p.give = startBufferPool(p.concurrency * 2)
+	//p.get, p.give = NewBufferPool(p.concurrency * 2)
 	return p, nil
 }
 

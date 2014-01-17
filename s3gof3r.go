@@ -4,7 +4,6 @@ package s3gof3r
 import (
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -38,20 +37,19 @@ type Config struct {
 
 // Defaults
 var DefaultConfig = &Config{
-	Concurrency: 20,
+	Concurrency: 10,
 	PartSize:    20 * mb,
 	NTry:        10,
 	Md5Check:    true,
 	Scheme:      "https",
 }
 
-var DefaultDomain = "s3.amazonaws.com"
-
-// http client timeout settings
+// http client timeout
 const (
-	clientDialTimeout     = 5 * time.Second
-	responseHeaderTimeout = 5 * time.Second
+	clientTimeout = 5 * time.Second
 )
+
+var DefaultDomain = "s3.amazonaws.com"
 
 // Returns a new S3
 // domain defaults to DefaultDomain if empty
@@ -77,7 +75,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 		c = DefaultConfig
 	}
 	if c.Client == nil {
-		c.Client = createClientWithTimeout(clientDialTimeout)
+		c.Client = ClientWithTimeout(clientTimeout)
 	}
 	return newGetter(b.Url(path, c), c, b)
 }
@@ -92,7 +90,7 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 		c = DefaultConfig
 	}
 	if c.Client == nil {
-		c.Client = createClientWithTimeout(clientDialTimeout)
+		c.Client = ClientWithTimeout(clientTimeout)
 	}
 	return newPutter(b.Url(path, c), h, c, b)
 }
@@ -104,14 +102,4 @@ func (b *Bucket) Url(path string, c *Config) url.URL {
 		panic(err)
 	}
 	return *url_
-}
-func createClientWithTimeout(timeout time.Duration) *http.Client {
-
-	dialer := &net.Dialer{Timeout: timeout}
-	return &http.Client{
-		Transport: &http.Transport{
-			Dial: dialer.Dial,
-			ResponseHeaderTimeout: responseHeaderTimeout,
-		},
-	}
 }

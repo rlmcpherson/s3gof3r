@@ -2,21 +2,60 @@ package s3gof3r
 
 import (
 	"bytes"
+	"container/list"
+	"time"
 )
 
-func startBufferPool(size int) (get, give chan *bytes.Buffer) {
-	get = make(chan *bytes.Buffer, size)
-	give = make(chan *bytes.Buffer)
+type q_buf struct {
+	when   time.Time
+	buffer *bytes.Buffer
+}
+
+type bp struct {
+	makes int
+	get   chan *bytes.Buffer
+	give  chan *bytes.Buffer
+}
+
+func NewBufferPool(bufsz int64, maxMakes int) (np *bp) {
+	np = new(bp)
+	np.get = make(chan *bytes.Buffer)
+	np.give = make(chan *bytes.Buffer)
 	go func() {
+		q := new(list.List)
 		for {
-			b := <-give
+			if q.Len() == 0 {
+				size := bufsz + 1*kb
+				q.PushFront(q_buf{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(int64(size)))})
+				//log.Println("Make buffer:", size)
+				np.makes++
+			}
+
+			e := q.Front()
+
+			timeout := time.NewTimer(time.Minute)
 			select {
-			case get <- b:
-				// buffer is returned to the pool
-			default:
-				// do nothing, buffer is garbage collected}
+			case b := <-np.give:
+				timeout.Stop()
+				q.PushFront(q_buf{when: time.Now(), buffer: b})
+
+			case np.get <- e.Value.(q_buf).buffer:
+				timeout.Stop()
+				q.Remove(e)
+			// free unused buffers
+			case <-timeout.C:
+				e := q.Front()
+				for e != nil {
+					n := e.Next()
+					if time.Since(e.Value.(q_buf).when) > time.Minute {
+						q.Remove(e)
+						e.Value = nil
+					}
+					e = n
+				}
 			}
 		}
+
 	}()
-	return
+	return np
 }
