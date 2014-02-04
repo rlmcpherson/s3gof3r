@@ -2,7 +2,6 @@ package s3gof3r
 
 import (
 	"bytes"
-	"container/list"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/xml"
@@ -16,7 +15,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 )
 
 // defined by amazon
@@ -60,8 +58,8 @@ type putter struct {
 	md5        hash.Hash
 	ETag       string
 
-	get      chan *bytes.Buffer
-	give     chan *bytes.Buffer
+	bp *bp
+
 	makes    int
 	UploadId string
 	xml      struct {
@@ -106,8 +104,8 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	}
 	p.md5OfParts = md5.New()
 	p.md5 = md5.New()
-	//p.get, p.give = p.makeRecycler()
-	//p.get, p.give = NewBufferPool(p.concurrency * 2)
+
+	p.bp = NewBufferPool(p.bufsz)
 	return p, nil
 }
 
@@ -119,7 +117,7 @@ func (p *putter) Write(b []byte) (int, error) {
 		return 0, p.err
 	}
 	if p.buf == nil {
-		p.buf = p.get_buffer()
+		p.buf = <-p.bp.get
 		p.buf.Reset()
 	}
 	n, err := p.buf.Write(b)
@@ -169,7 +167,7 @@ func (p *putter) retryUploadPart(part *part) {
 		part.r.Seek(0, 0)
 		err = p.putPart(part)
 		if err == nil {
-			p.give <- part.b
+			p.bp.give <- part.b
 			return
 		}
 		log.Printf("Error on attempt %d: Retrying part: %v, Error: %s", i, part, err)
@@ -226,7 +224,7 @@ func (p *putter) Close() (err error) {
 		}
 		return p.err
 	}
-	log.Println("makes:", p.makes)
+	log.Println("makes:", p.bp.makes)
 	// Complete Multipart upload
 	body, err := xml.Marshal(p.xml)
 	if err != nil {
@@ -290,18 +288,18 @@ func (p *putter) abort() (err error) {
 	return
 }
 
-func (p *putter) get_buffer() *bytes.Buffer {
-	var b *bytes.Buffer
-	if p.makes < p.concurrency*2 && len(p.get) == 0 {
-		size := p.bufsz + 1*kb
-		s := make([]byte, 0, size)
-		b = bytes.NewBuffer(s)
-		p.makes++
-	} else {
-		b = <-p.get
-	}
-	return b
-}
+//func (p *putter) get_buffer() *bytes.Buffer {
+//var b *bytes.Buffer
+//if p.makes < p.concurrency*2 && len(p.get) == 0 {
+//size := p.bufsz + 1*kb
+//s := make([]byte, 0, size)
+//b = bytes.NewBuffer(s)
+//p.makes++
+//} else {
+//b = <-p.get
+//}
+//return b
+//}
 
 // Md5 functions
 func (p *putter) md5Content(r io.ReadSeeker) (string, string, error) {
@@ -367,64 +365,5 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 			body.Seek(0, 0)
 		}
 	}
-	return
-}
-
-// old buffer pooling code
-/////////////////////////////////////
-type queued struct {
-	when   time.Time
-	buffer *bytes.Buffer
-}
-
-func makeBuffer(size int64) []byte {
-	return make([]byte, 0, size)
-}
-
-//debug
-var q_len_max int
-
-func (p *putter) makeRecycler() (get, give chan *bytes.Buffer) {
-	get = make(chan *bytes.Buffer)
-	give = make(chan *bytes.Buffer)
-
-	go func() {
-		q := new(list.List)
-		for {
-			if q.Len() == 0 {
-				size := p.bufsz + 1*kb
-				q.PushFront(queued{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(int64(size)))})
-				//q.PushFront(queued{when: time.Now(), buffer: bytes.NewBuffer(nil)})
-				//log.Println("Make buffer:", size)
-				p.makes++
-			}
-
-			e := q.Front()
-
-			timeout := time.NewTimer(time.Minute)
-			select {
-			case b := <-give:
-				timeout.Stop()
-				q.PushFront(queued{when: time.Now(), buffer: b})
-				q_len_max = max(q_len_max, q.Len())
-
-			case get <- e.Value.(queued).buffer:
-				timeout.Stop()
-				q.Remove(e)
-			// free unused buffers
-			case <-timeout.C:
-				e := q.Front()
-				for e != nil {
-					n := e.Next()
-					if time.Since(e.Value.(queued).when) > time.Minute {
-						q.Remove(e)
-						e.Value = nil
-					}
-					e = n
-				}
-			}
-		}
-
-	}()
 	return
 }

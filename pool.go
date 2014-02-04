@@ -17,7 +17,11 @@ type bp struct {
 	give  chan *bytes.Buffer
 }
 
-func NewBufferPool(bufsz int64, maxMakes int) (np *bp) {
+func makeBuffer(size int64) []byte {
+	return make([]byte, 0, size)
+}
+
+func NewBufferPool(bufsz int64) (np *bp) {
 	np = new(bp)
 	np.get = make(chan *bytes.Buffer)
 	np.give = make(chan *bytes.Buffer)
@@ -27,7 +31,6 @@ func NewBufferPool(bufsz int64, maxMakes int) (np *bp) {
 			if q.Len() == 0 {
 				size := bufsz + 1*kb
 				q.PushFront(q_buf{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(int64(size)))})
-				//log.Println("Make buffer:", size)
 				np.makes++
 			}
 
@@ -42,8 +45,9 @@ func NewBufferPool(bufsz int64, maxMakes int) (np *bp) {
 			case np.get <- e.Value.(q_buf).buffer:
 				timeout.Stop()
 				q.Remove(e)
-			// free unused buffers
+
 			case <-timeout.C:
+				// free unused buffers
 				e := q.Front()
 				for e != nil {
 					n := e.Next()

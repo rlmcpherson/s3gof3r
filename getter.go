@@ -82,8 +82,7 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	log.Println("content length : ", g.content_length)
 	log.Println("concurrency: ", g.concurrency)
 
-	//start buffer pool with size of concurrency
-	g.bp = NewBufferPool(g.bufsz, g.concurrency*3)
+	g.bp = NewBufferPool(g.bufsz)
 
 	for i := 0; i < g.concurrency; i++ {
 		go g.worker()
