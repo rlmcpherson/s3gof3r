@@ -144,7 +144,7 @@ func (p *putter) flush() {
 	p.xml.Part = append(p.xml.Part, part)
 	p.ch <- part
 	p.buf = nil
-	// double buffer size every 500 parts to
+	// double buffer size every 1000 parts to
 	// avoid exceeding the 10000-part AWS limit
 	// while still reaching the 5 Terabyte max object size
 	if p.part%1000 == 0 {

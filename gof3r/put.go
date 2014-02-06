@@ -25,7 +25,7 @@ func (put *Put) Execute(args []string) (err error) {
 	if put.Concurrency > 0 {
 		conf.Concurrency = put.Concurrency
 	}
-	conf.PartSize = get.PartSize
+	conf.PartSize = put.PartSize
 	conf.Md5Check = !put.CheckDisable
 	log.Println(put)
 	if put.Header == nil {
@@ -34,7 +34,7 @@ func (put *Put) Execute(args []string) (err error) {
 
 	r, err := os.Open(put.Path)
 	if err != nil {
-		if get.Path == "" {
+		if put.Path == "" {
 			r = os.Stdin
 		} else {
 			return
