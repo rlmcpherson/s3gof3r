@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type getter struct {
@@ -114,6 +115,9 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 func (g *getter) init_chunks() {
 	id := 0
 	for i := int64(0); i < g.content_length; {
+		for len(g.q_wait) > g.concurrency {
+			time.Sleep(500 * time.Millisecond)
+		}
 		size := min64(g.bufsz, g.content_length-i)
 		c := &chunk{
 			id: id,
