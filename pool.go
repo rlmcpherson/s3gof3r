@@ -29,7 +29,7 @@ func NewBufferPool(bufsz int64) (np *bp) {
 		q := new(list.List)
 		for {
 			if q.Len() == 0 {
-				size := bufsz + 1*kb
+				size := bufsz + 100*kb // allocate overhead to avoid slice growth
 				q.PushFront(q_buf{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(int64(size)))})
 				np.makes++
 			}

@@ -124,7 +124,7 @@ func (p *putter) Write(b []byte) (int, error) {
 	if err != nil {
 		return n, err
 	}
-	if int64(p.buf.Len()) >= (p.bufsz - int64(len(b))) {
+	if int64(p.buf.Len()) >= p.bufsz {
 		p.flush()
 	}
 	return n, nil
