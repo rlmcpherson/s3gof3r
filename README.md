@@ -1,6 +1,57 @@
-Package s3gof3r provides fast, concurrent, streaming access to Amazon S3. Includes a command-line interface.
+# s3gof3r #
 
- Command-line Interface Usage:
+s3gof3r provides fast, concurrent, streaming access to Amazon S3. It includes a command-line interface: `gof3r`.
+
+It is tuned for high speed transfer of large objects into and out of Amazon S3. Streaming support allows for usage like:
+
+```
+  $ tar -czf - <my_dir/> | gof3r put -b <s3_bucket> -k <s3_object>    
+  $ gof3r get -b <s3_bucket> -k <s3_object> | tar -zx
+```
+
+
+**Speed Benchmarks**
+
+On an EC2 instance, gof3r can exceed 1 Gbps for both puts and gets:
+
+```
+  $ gof3r get -b test-bucket -k 8_GB_tar | pv -a | tar -x
+  Duration: 53.201632211s
+  [ 167MB/s]
+  
+
+  $ tar -cf - test_dir/ | pv -a | gof3r put -b test-bucket -k 8_GB_tar
+  Duration: 1m16.080800315s
+  [ 119MB/s]
+```
+
+These tests were performed on an m1.xlarge EC2 instance with a virtualized 1 Gigabit ethernet interface. See [Amazon EC2 Instance Details](http://aws.amazon.com/ec2/instance-types/instance-details/) for more information.
+
+
+**Features**
+
+- *End-to-end Integrity Checking:* s3gof3r calculates the md5 hash of the stream in parallel while uploading and downloading. On upload, a file containing the md5 hash is saved in s3. This is checked against the calculated md5 on download. On upload, the content-md5 of each part is calculated and sent with the header to be checked by AWS. s3gof3r also checks the 'hash of hashes' returned by S3 in the `Etag` field on completion of a multipart upload. See the [S3 API Reference](http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html) for details.
+
+- *Retry Everything:* All http requests and every part is retried on both uploads and downloads. Requests to S3 frequently time out, especially under high load, so this is essential to complete large uploads or downloads.
+
+- *Memory Efficiency:* Memory used to upload and download parts is recycled. For an upload with the default concurrency of 10 and part size of 20 MB, the maximum memory usage is less than 250 MB and does not depend on the size of the upload. For downloads with the same default configuration, maximum memory usage will not exceed 450 MB. The additional memory usage vs. uploading is due to the need to reorder parts before adding them to the stream.
+
+
+
+
+## Installation ##
+
+s3gof3r is written in Go and requires a Go installation. It can be installed with `go get` to download and compile it from source. To install the command-line tool, `gof3r`:
+
+    $ go get github.com/rlmcpherson/s3gof3r/gof3r
+    
+To install just the package for use in other Go programs:
+
+    $ go get github.com/rlmcpherson/s3gof3r
+
+
+
+## Command-line Interface Usage: ##
 
  ```
    To stream up to S3:

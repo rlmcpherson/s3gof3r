@@ -288,19 +288,6 @@ func (p *putter) abort() (err error) {
 	return
 }
 
-//func (p *putter) get_buffer() *bytes.Buffer {
-//var b *bytes.Buffer
-//if p.makes < p.concurrency*2 && len(p.get) == 0 {
-//size := p.bufsz + 1*kb
-//s := make([]byte, 0, size)
-//b = bytes.NewBuffer(s)
-//p.makes++
-//} else {
-//b = <-p.get
-//}
-//return b
-//}
-
 // Md5 functions
 func (p *putter) md5Content(r io.ReadSeeker) (string, string, error) {
 	h := md5.New()
