@@ -30,8 +30,6 @@ type getter struct {
 	read_ch        chan *chunk
 	get_ch         chan *chunk
 
-	//	get   chan *bytes.Buffer
-	//	give  chan *bytes.Buffer
 	bp *bp
 
 	q_wait map[int]*chunk
@@ -116,7 +114,9 @@ func (g *getter) init_chunks() {
 	id := 0
 	for i := int64(0); i < g.content_length; {
 		for len(g.q_wait) > g.concurrency {
-			time.Sleep(500 * time.Millisecond)
+			// Limit growth of q_wait
+			timeout := time.NewTimer(time.Second)
+			<-timeout.C
 		}
 		size := min64(g.bufsz, g.content_length-i)
 		c := &chunk{
