@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-type uploadTest struct {
+type putTest struct {
 	url       string
 	file_path string
 	header    string
@@ -12,36 +12,36 @@ type uploadTest struct {
 	out       string
 }
 
-type downloadTest struct {
+type getTest struct {
 	url       string
 	file_path string
 	out       string
 }
 
-var uploadTests = []uploadTest{
+var putTests = []putTest{
 	{"https://foo", "bar_file", "a:b", false, "out"},
 }
 
-var downloadTests = []downloadTest{
+var getTests = []getTest{
 	{"https://foo", "bar_file", "out"},
 }
 
-func TestUpload(t *testing.T) {
-	for _, tt := range uploadTests {
+func TestPut(t *testing.T) {
+	for _, tt := range putTests {
 		actual := ""
 		if actual != tt.out {
-			t.Errorf("Upload called with %s, %s, %s. Expected %s, actual %s",
+			t.Errorf("put called with %s, %s, %s. Expected %s, actual %s",
 				tt.url, tt.file_path, tt.header, tt.out, actual)
 
 		}
 	}
 }
 
-func TestDownload(t *testing.T) {
-	for _, tt := range downloadTests {
+func TestGet(t *testing.T) {
+	for _, tt := range getTests {
 		actual := ""
 		if actual != tt.out {
-			t.Errorf("Download called with %s, %s. Expected %s, actual %s",
+			t.Errorf("get called with %s, %s. Expected %s, actual %s",
 				tt.url, tt.file_path, tt.out, actual)
 
 		}

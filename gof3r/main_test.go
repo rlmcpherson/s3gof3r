@@ -10,8 +10,8 @@ type cmdTest struct {
 }
 
 var cmdTests = []cmdTest{
-	{"up", "foo"},
-	{"down", "foo"},
+	{"get", "foo"},
+	{"put", "foo"},
 }
 
 func TestMain(t *testing.T) {
