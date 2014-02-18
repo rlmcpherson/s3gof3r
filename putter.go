@@ -105,7 +105,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	p.md5OfParts = md5.New()
 	p.md5 = md5.New()
 
-	p.bp = NewBufferPool(p.bufsz)
+	p.bp = newBufferPool(p.bufsz)
 	return p, nil
 }
 

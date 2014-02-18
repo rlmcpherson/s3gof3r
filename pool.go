@@ -22,7 +22,7 @@ func makeBuffer(size int64) []byte {
 	return make([]byte, 0, size)
 }
 
-func NewBufferPool(bufsz int64) (np *bp) {
+func newBufferPool(bufsz int64) (np *bp) {
 	np = new(bp)
 	np.get = make(chan *bytes.Buffer)
 	np.give = make(chan *bytes.Buffer)
