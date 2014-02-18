@@ -75,9 +75,9 @@ To install just the package for use in other Go programs:
   $ export AWS_SECRET_ACCESS_KEY=<secret_key>
 ```
 
-**Try the gof3r command-line tool with statically-linked binaries**  
-[linux amd/64 binary (go1.2)](https://dl.dropboxusercontent.com/u/30064071/s3gof3r/linux/gof3r)  
-[mac osx binary (go1.2)](https://dl.dropboxusercontent.com/u/30064071/s3gof3r/osx/gof3r)   
+**Try the gof3r command-line tool statically-linked binaries**  
+[linux amd/64 binary (go1.2)](https://github.com/rlmcpherson/s3gof3r/releases/download/v0.3.0/gof3r_linux_amd64_binary.zip)  
+[mac osx binary (go1.2)](https://github.com/rlmcpherson/s3gof3r/releases/download/v0.3.0/gof3r_osx_binary.zip)   
 
  Examples:
 
