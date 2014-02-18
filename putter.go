@@ -217,6 +217,7 @@ func (p *putter) Close() (err error) {
 	p.wg.Wait()
 	close(p.ch)
 	p.closed = true
+	p.bp.quit <- true
 	if p.err != nil {
 		err := p.abort()
 		if err != nil {

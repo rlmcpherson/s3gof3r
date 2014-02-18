@@ -15,6 +15,7 @@ type bp struct {
 	makes int
 	get   chan *bytes.Buffer
 	give  chan *bytes.Buffer
+	quit  chan bool
 }
 
 func makeBuffer(size int64) []byte {
@@ -25,6 +26,7 @@ func NewBufferPool(bufsz int64) (np *bp) {
 	np = new(bp)
 	np.get = make(chan *bytes.Buffer)
 	np.give = make(chan *bytes.Buffer)
+	np.quit = make(chan bool)
 	go func() {
 		q := new(list.List)
 		for {
@@ -57,6 +59,8 @@ func NewBufferPool(bufsz int64) (np *bp) {
 					}
 					e = n
 				}
+			case <-np.quit:
+				return
 			}
 		}
 
