@@ -1,4 +1,5 @@
-// Package s3gof3r provides fast, concurrent, streaming access to Amazon S3. Includes a CLI.
+// Package s3gof3r provides fast, parallelized, streaming access to Amazon S3. It includes a command-line interface: `gof3r`.
+
 package s3gof3r
 
 import (

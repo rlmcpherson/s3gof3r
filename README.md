@@ -1,8 +1,8 @@
 # s3gof3r #
 
-s3gof3r provides fast, concurrent, streaming access to Amazon S3. It includes a command-line interface: `gof3r`.
+s3gof3r provides fast, parallelized, pipelined streaming access to Amazon S3. It includes a command-line interface: `gof3r`.
 
-It is tuned for high speed transfer of large objects into and out of Amazon S3. Streaming support allows for usage like:
+It is optimized for high speed transfer of large objects into and out of Amazon S3. Streaming support allows for usage like:
 
 ```
   $ tar -czf - <my_dir/> | gof3r put -b <s3_bucket> -k <s3_object>    
@@ -29,6 +29,10 @@ These tests were performed on an m1.xlarge EC2 instance with a virtualized 1 Gig
 
 
 **Features**
+
+- *Speed:* Especially for larger s3 objects where parallelism can be exploited, s3gof3r will saturate the bandwidth of an EC2 instance. See the Benchmarks above.
+
+- *Streaming Uploads and Downloads:* As the above examples illustrate, streaming allows the gof3r command-line tool to be used with linux/unix pipes. This allows transformation of the data in parallel as it is uploaded or downloaded from S3.
 
 - *End-to-end Integrity Checking:* s3gof3r calculates the md5 hash of the stream in parallel while uploading and downloading. On upload, a file containing the md5 hash is saved in s3. This is checked against the calculated md5 on download. On upload, the content-md5 of each part is calculated and sent with the header to be checked by AWS. s3gof3r also checks the 'hash of hashes' returned by S3 in the `Etag` field on completion of a multipart upload. See the [S3 API Reference](http://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html) for details.
 
@@ -130,8 +134,11 @@ To install just the package for use in other Go programs:
    Help Options:
      -h, --help          Show this help message
  ```
+ 
 
-See godoc.org for more documentation:
 
-package: [http://godoc.org/github.com/rlmcpherson/s3gof3r](http://godoc.org/github.com/rlmcpherson/s3gof3r)
+**See godoc.org for more documentation, including the s3gof3r package api:**
+
+s3gof3r package: [http://godoc.org/github.com/rlmcpherson/s3gof3r](http://godoc.org/github.com/rlmcpherson/s3gof3r)
+
 command-line interface: [http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r](http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r)
