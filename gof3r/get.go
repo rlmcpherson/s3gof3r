@@ -1,15 +1,18 @@
 package main
 
 import (
-	"github.com/rlmcpherson/s3gof3r"
+	"fmt"
 	"io"
 	"log"
 	"os"
+
+	"github.com/rlmcpherson/s3gof3r"
 )
 
 type Get struct {
 	Path string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming." default:"/dev/stdout"`
 	CommonOpts
+	VersionId string `short:"v" long:"versionId" description:"The version ID of the object. Not compatible with md5 checking."`
 }
 
 var get Get
@@ -25,7 +28,12 @@ func (get *Get) Execute(args []string) (err error) {
 	}
 	conf.PartSize = get.PartSize
 	conf.Md5Check = !get.CheckDisable
+
+	if get.VersionId != "" {
+		get.Key = fmt.Sprintf("%s?versionId=%s", get.Key, get.VersionId)
+	}
 	log.Println("GET: ", get)
+
 	w, err := os.Create(get.Path)
 	if err != nil {
 		if get.Path == "" {
