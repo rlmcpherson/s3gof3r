@@ -37,7 +37,9 @@
 //                       during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
 //   -c, --concurrency=  Concurrency of transfers (20)
 //   -s, --partsize=     initial size of concurrent parts, in bytes (20 MB)
+//   --endpoint=     Amazon S3 endpoint (s3.amazonaws.com)
 //   --debug             Print debug statements and dump stacks.
+//   -v, --versionId=    The version ID of the object. Not compatible with md5 checking.
 //
 //   Help Options:
 //   -h, --help          Show this help message
@@ -60,7 +62,8 @@
 //                         during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
 //     -c, --concurrency=  Concurrency of transfers (20)
 //     -s, --partsize=     initial size of concurrent parts, in bytes (20 MB)
-//         --debug         Print debug statements and dump stacks.
+//     --endpoint=     Amazon S3 endpoint (s3.amazonaws.com)
+//     --debug         Print debug statements and dump stacks.
 //
 //   Help Options:
 //     -h, --help          Show this help message
@@ -94,9 +97,6 @@ var parser = flags.NewParser(nil, flags.Default)
 func main() {
 	// set the number of processors to use to the number of cpus for parallelization of concurrent transfers
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	//	f, _ := os.Create("cpuprofile.out")
-	//	pprof.StartCPUProfile(f)
-	//	defer pprof.StopCPUProfile()
 
 	// parser calls the Execute functions on Get and Put, after parsing the command line options.
 	start := time.Now()
@@ -124,16 +124,17 @@ func debug() {
 	//profiling
 	f, err := os.Create("memprofileup.out")
 	defer f.Close()
-	//	fg, err := os.Create("goprof.out")
-	//	fb, err := os.Create("blockprof.out")
+	fg, err := os.Create("goprof.out")
+	fb, err := os.Create("blockprof.out")
 	if err != nil {
 		log.Fatal(err)
 	}
 	pprof.WriteHeapProfile(f)
-	//	pprof.Lookup("goroutine").WriteTo(fg, 0)
-	//	pprof.Lookup("block").WriteTo(fb, 0)
+	pprof.Lookup("goroutine").WriteTo(fg, 0)
+	pprof.Lookup("block").WriteTo(fb, 0)
 	f.Close()
-	//	fg.Close()
-	//	fb.Close()
-	//	panic("Dump the stacks:")
+	fg.Close()
+	fb.Close()
+	time.Sleep(1 * time.Second)
+	panic("Debugging: Dump the stacks:")
 }
