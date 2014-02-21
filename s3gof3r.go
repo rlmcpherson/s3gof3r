@@ -15,6 +15,9 @@ import (
 type Keys struct {
 	AccessKey string
 	SecretKey string
+	// For use with temporary security credentials.
+	// See http://docs.aws.amazon.com/STS/latest/UsingSTS/Welcome.html
+	SecurityToken string
 }
 
 type S3 struct {
