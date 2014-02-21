@@ -10,13 +10,6 @@ import (
 	"time"
 )
 
-// Keys for an Amazon Web Services account.
-// Used for signing http requests.
-type Keys struct {
-	AccessKey string
-	SecretKey string
-}
-
 type S3 struct {
 	Domain string // The s3-compatible service domain. Defaults to "s3.amazonaws.com"
 	Keys

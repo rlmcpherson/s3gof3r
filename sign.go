@@ -39,6 +39,9 @@ func (b *Bucket) Sign(req *http.Request) {
 	if dateHeader := req.Header.Get("Date"); dateHeader == "" {
 		req.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 	}
+	if b.S3.Keys.SecurityToken != "" {
+		req.Header.Set("X-Amz-Security-Token", b.S3.Keys.SecurityToken)
+	}
 	hm := hmac.New(sha1.New, []byte(b.S3.Keys.SecretKey))
 	b.writeSignature(hm, req)
 	signature := make([]byte, base64.StdEncoding.EncodedLen(hm.Size()))
