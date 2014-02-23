@@ -26,6 +26,8 @@ type mdCreds struct {
 	Expiration      string
 }
 
+// Requests the AWS keys from the instance-based metadata on EC2
+// Assumes only one IAM role.
 func InstanceKeys() (keys Keys, err error) {
 
 	rolePath := "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
@@ -72,31 +74,15 @@ func InstanceKeys() (keys Keys, err error) {
 	return
 }
 
-// Uses same environment variables as aws cli
+// Reads the AWS keys from the environment
 func EnvKeys() (keys Keys, err error) {
 	keys = Keys{AccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
 		SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 	}
 	if keys.AccessKey == "" || keys.SecretKey == "" {
-		err = errors.New("AWS keys not in environment.")
+		err = errors.New("Keys not set in environment: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
 	}
 	return
 }
 
-// This convenience function gets the AWS Keys from environment variables or the instance-based metadata on EC2
-// Environment variables are attempted first, followed by the instance-based credentials.
-// Assumes only one IAM role
-// It returns an error if no keys are found.
-func GetAWSKeys() (keys Keys, err error) {
 
-	keys, err = EnvKeys()
-	if err == nil {
-		return
-	}
-	keys, err = InstanceKeys()
-	if err == nil {
-		return
-	}
-	err = errors.New("No AWS Keys found.")
-	return
-}
