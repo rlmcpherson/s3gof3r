@@ -155,12 +155,12 @@ func (p *putter) flush() {
 
 func (p *putter) worker() {
 	for part := range p.ch {
-		p.retryUploadPart(part)
+		p.retryPutPart(part)
 	}
 }
 
 // Calls putPart up to nTry times to recover from transient errors.
-func (p *putter) retryUploadPart(part *part) {
+func (p *putter) retryPutPart(part *part) {
 	defer p.wg.Done()
 	var err error
 	for i := 0; i < p.nTry; i++ {
@@ -335,7 +335,7 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		var req *http.Request
 		req, err = http.NewRequest(method, urlStr, body)
 		if err != nil {
-			return
+			break
 		}
 		for k := range h {
 			for _, v := range h[k] {

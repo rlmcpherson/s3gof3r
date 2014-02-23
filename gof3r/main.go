@@ -77,7 +77,6 @@ import (
 	"time"
 
 	"github.com/jessevdk/go-flags"
-	"github.com/rlmcpherson/s3gof3r"
 )
 
 // Options common to both puts and gets
@@ -104,13 +103,6 @@ func main() {
 		os.Exit(1)
 	}
 	log.Println("Duration:", time.Since(start))
-}
-
-// Uses same environment variables as aws cli
-func getKeys() s3gof3r.Keys {
-	return s3gof3r.Keys{AccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
-		SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
-	}
 }
 
 func debug() {
