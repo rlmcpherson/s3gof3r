@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/rlmcpherson/s3gof3r"
 	"io"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/rlmcpherson/s3gof3r"
 )
 
 type Put struct {
@@ -19,7 +20,10 @@ var put Put
 func (put *Put) Execute(args []string) (err error) {
 	conf := new(s3gof3r.Config)
 	conf = s3gof3r.DefaultConfig
-	k := getKeys()
+	k, err := getAWSKeys()
+	if err != nil {
+		return
+	}
 	s3 := s3gof3r.New(put.EndPoint, k)
 	b := s3.Bucket(put.Bucket)
 	if put.Concurrency > 0 {

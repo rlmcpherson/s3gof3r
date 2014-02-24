@@ -155,12 +155,12 @@ func (p *putter) flush() {
 
 func (p *putter) worker() {
 	for part := range p.ch {
-		p.retryUploadPart(part)
+		p.retryPutPart(part)
 	}
 }
 
 // Calls putPart up to nTry times to recover from transient errors.
-func (p *putter) retryUploadPart(part *part) {
+func (p *putter) retryPutPart(part *part) {
 	defer p.wg.Done()
 	var err error
 	for i := 0; i < p.nTry; i++ {

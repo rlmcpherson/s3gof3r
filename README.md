@@ -53,9 +53,16 @@ To install just the package for use in other Go programs:
 
     $ go get github.com/rlmcpherson/s3gof3r
 
+### Release Binaries ###
+
+To try the latest release of the gof3r command-line interface without installing go, download the statically-linked binaries:
+
+[linux amd/64 binary (go1.2)](https://github.com/rlmcpherson/s3gof3r/releases/download/v0.3.0/gof3r_linux_amd64_binary.zip)  
+[mac osx binary (go1.2)](https://github.com/rlmcpherson/s3gof3r/releases/download/v0.3.0/gof3r_osx_binary.zip)   
 
 
-## Command-line Interface Usage: ##
+
+## Gof3r (Command-line Interface) Usage: ##
 
  ```
    To stream up to S3:
@@ -68,16 +75,14 @@ To install just the package for use in other Go programs:
       $ gof3r  get --bucket=<bucket> --key=<s3_path>
 ```
 
- Set AWS keys as environment Variables (required):
+ Set AWS keys as environment Variables:
 
 ```
   $ export AWS_ACCESS_KEY_ID=<access_key>
   $ export AWS_SECRET_ACCESS_KEY=<secret_key>
 ```
 
-**Try the gof3r command-line tool statically-linked binaries**  
-[linux amd/64 binary (go1.2)](https://github.com/rlmcpherson/s3gof3r/releases/download/v0.3.0/gof3r_linux_amd64_binary.zip)  
-[mac osx binary (go1.2)](https://github.com/rlmcpherson/s3gof3r/releases/download/v0.3.0/gof3r_osx_binary.zip)   
+Gof3r also supports IAM role-based keys from EC2 instance metadata. If available and environment variables are not set, these keys are used are used automatically. See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html.
 
  Examples:
 
@@ -135,9 +140,9 @@ To install just the package for use in other Go programs:
      -h, --help          Show this help message
  ```
  
+## Documentation ##
 
-
-**See godoc.org for more documentation, including the s3gof3r package api:**
+**See godoc.org for full documentation, including the s3gof3r package api:**
 
 s3gof3r package: [http://godoc.org/github.com/rlmcpherson/s3gof3r](http://godoc.org/github.com/rlmcpherson/s3gof3r)
 

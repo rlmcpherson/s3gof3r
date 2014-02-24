@@ -70,6 +70,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
 	"runtime"
@@ -80,7 +81,7 @@ import (
 	"github.com/rlmcpherson/s3gof3r"
 )
 
-// Options common to both puts and gets
+// CommonOpts are Options common to both puts and gets
 type CommonOpts struct {
 	//Url         string      `short:"u" long:"url" description:"Url of S3 object"` //TODO: bring back url support
 	Key          string `long:"key" short:"k" description:"key of s3 object" required:"true"`
@@ -106,11 +107,21 @@ func main() {
 	log.Println("Duration:", time.Since(start))
 }
 
-// Uses same environment variables as aws cli
-func getKeys() s3gof3r.Keys {
-	return s3gof3r.Keys{AccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
-		SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+// Gets the AWS Keys from environment variables or the instance-based metadata on EC2
+// Environment variables are attempted first, followed by the instance-based credentials.
+// It returns an error if no keys are found.
+func getAWSKeys() (keys s3gof3r.Keys, err error) {
+
+	keys, err = s3gof3r.EnvKeys()
+	if err == nil {
+		return
 	}
+	keys, err = s3gof3r.InstanceKeys()
+	if err == nil {
+		return
+	}
+	err = errors.New("No AWS Keys found.")
+	return
 }
 
 func debug() {

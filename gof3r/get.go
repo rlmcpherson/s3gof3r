@@ -20,7 +20,10 @@ var get Get
 func (get *Get) Execute(args []string) (err error) {
 	conf := new(s3gof3r.Config)
 	conf = s3gof3r.DefaultConfig
-	k := getKeys()
+	k, err := getAWSKeys()
+	if err != nil {
+		return
+	}
 	s3 := s3gof3r.New(get.EndPoint, k)
 	b := s3.Bucket(get.Bucket)
 	if get.Concurrency > 0 {
