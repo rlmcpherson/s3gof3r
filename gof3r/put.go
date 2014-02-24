@@ -20,8 +20,7 @@ var put Put
 func (put *Put) Execute(args []string) (err error) {
 	conf := new(s3gof3r.Config)
 	conf = s3gof3r.DefaultConfig
-	k, err := s3gof3r.GetAWSKeys()
-	log.Println("KEYS: ", k)
+	k, err := getAWSKeys()
 	if err != nil {
 		return
 	}

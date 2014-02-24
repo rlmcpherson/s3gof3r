@@ -335,7 +335,7 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		var req *http.Request
 		req, err = http.NewRequest(method, urlStr, body)
 		if err != nil {
-			break
+			return
 		}
 		for k := range h {
 			for _, v := range h[k] {
