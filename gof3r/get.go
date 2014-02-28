@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 
 	"github.com/rlmcpherson/s3gof3r"
@@ -31,6 +32,7 @@ func (get *Get) Execute(args []string) (err error) {
 	}
 	conf.PartSize = get.PartSize
 	conf.Md5Check = !get.CheckDisable
+	get.Key = url.QueryEscape(get.Key)
 
 	if get.VersionId != "" {
 		get.Key = fmt.Sprintf("%s?versionId=%s", get.Key, get.VersionId)
