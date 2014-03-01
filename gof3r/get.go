@@ -20,7 +20,7 @@ var get Get
 
 func (get *Get) Execute(args []string) (err error) {
 	conf := new(s3gof3r.Config)
-	conf = s3gof3r.DefaultConfig
+	*conf = *s3gof3r.DefaultConfig
 	k, err := getAWSKeys()
 	if err != nil {
 		return
