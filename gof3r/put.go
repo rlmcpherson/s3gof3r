@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/rlmcpherson/s3gof3r"
@@ -31,6 +32,7 @@ func (put *Put) Execute(args []string) (err error) {
 	}
 	conf.PartSize = put.PartSize
 	conf.Md5Check = !put.CheckDisable
+	put.Key = url.QueryEscape(put.Key)
 	log.Println(put)
 	if put.Header == nil {
 		put.Header = make(http.Header)
