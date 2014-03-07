@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+const (
+	q_wait_threshold = 2
+)
+
 type getter struct {
 	url    url.URL
 	client *http.Client
@@ -113,10 +117,9 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 func (g *getter) init_chunks() {
 	id := 0
 	for i := int64(0); i < g.content_length; {
-		for len(g.q_wait) > g.concurrency {
+		for len(g.q_wait) >= q_wait_threshold {
 			// Limit growth of q_wait
-			timeout := time.NewTimer(time.Second)
-			<-timeout.C
+			time.Sleep(100 * time.Millisecond)
 		}
 		size := min64(g.bufsz, g.content_length-i)
 		c := &chunk{
@@ -247,7 +250,6 @@ func (g *getter) Close() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
