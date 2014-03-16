@@ -11,7 +11,7 @@ import (
 )
 
 type Get struct {
-	Path string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming." default:"/dev/stdout"`
+	Path string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming."`
 	CommonOpts
 	VersionId string `short:"v" long:"versionId" description:"The version ID of the object. Not compatible with md5 checking."`
 }
@@ -66,9 +66,6 @@ func (get *Get) Execute(args []string) (err error) {
 }
 
 func init() {
-	// TODO: figure out how to use defaults in struct
-	get.Concurrency = s3gof3r.DefaultConfig.Concurrency
-	get.PartSize = s3gof3r.DefaultConfig.PartSize
 	_, err := parser.AddCommand("get", "get (download) from S3", "get (download) from S3", &get)
 	if err != nil {
 		log.Fatal(err)

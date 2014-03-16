@@ -11,9 +11,9 @@ import (
 )
 
 type Put struct {
-	Path   string      `short:"p" long:"path" description:"Path to file. Defaults to standard input for streaming." default:"/dev/stdin"`
-	Header http.Header `long:"header" short:"m" description:"HTTP headers"`
+	Path string `short:"p" long:"path" description:"Path to file. Defaults to standard input for streaming."`
 	CommonOpts
+	Header http.Header `long:"header" short:"m" description:"HTTP headers"`
 }
 
 var put Put
@@ -64,10 +64,6 @@ func (put *Put) Execute(args []string) (err error) {
 }
 
 func init() {
-	// TODO: figure out how to use defaults in struct
-	put.Concurrency = s3gof3r.DefaultConfig.Concurrency
-	put.PartSize = s3gof3r.DefaultConfig.PartSize
-	put.Path = "/dev/stdin"
 	_, err := parser.AddCommand("put", "put (upload) to S3", "put (upload)to S3", &put)
 	if err != nil {
 		log.Fatal(err)
