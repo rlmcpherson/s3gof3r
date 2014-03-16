@@ -71,6 +71,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"runtime"
@@ -81,23 +82,37 @@ import (
 	"github.com/rlmcpherson/s3gof3r"
 )
 
+const (
+	name    = "gof3r"
+	version = "0.3.1"
+)
+
+var AppOpts struct {
+	Version func() `long:"version" short:"v"`
+}
+
 // CommonOpts are Options common to both puts and gets
 type CommonOpts struct {
 	//Url         string      `short:"u" long:"url" description:"Url of S3 object"` //TODO: bring back url support
 	Key          string `long:"key" short:"k" description:"key of s3 object" required:"true"`
 	Bucket       string `long:"bucket" short:"b" description:"s3 bucket" required:"true"`
 	CheckDisable bool   `long:"md5Check-off" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets."`
-	Concurrency  int    `long:"concurrency" short:"c" default:"20" description:"Concurrency of transfers"`
+	Concurrency  int    `long:"concurrency" short:"c" default:"10" description:"Concurrency of transfers"`
 	PartSize     int64  `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20971520"`
 	EndPoint     string `long:"endpoint" description:"Amazon S3 endpoint" default:"s3.amazonaws.com"`
 	Debug        bool   `long:"debug" description:"Print debug statements and dump stacks."`
 }
 
-var parser = flags.NewParser(nil, flags.Default)
+var parser = flags.NewParser(&AppOpts, flags.Default)
 
 func main() {
 	// set the number of processors to use to the number of cpus for parallelization of concurrent transfers
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	AppOpts.Version = func() {
+		fmt.Fprintf(os.Stderr, "%s version %s\n", name, version)
+		os.Exit(0)
+	}
 
 	// parser calls the Execute functions on Get and Put, after parsing the command line options.
 	start := time.Now()
