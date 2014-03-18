@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"sync"
@@ -33,6 +34,7 @@ type getter struct {
 	chunk_total    int
 	read_ch        chan *chunk
 	get_ch         chan *chunk
+	quit           chan struct{}
 
 	bp *bp
 
@@ -62,6 +64,7 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g.bufsz = c.PartSize
 	g.get_ch = make(chan *chunk)
 	g.read_ch = make(chan *chunk)
+	g.quit = make(chan struct{})
 	g.nTry = c.NTry
 	g.q_wait = make(map[int]*chunk)
 	g.b = b
@@ -152,6 +155,7 @@ func (g *getter) retryGetChunk(c *chunk) {
 	var err error
 	c.b = <-g.bp.get
 	for i := 0; i < g.nTry; i++ {
+		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 		err = g.getChunk(c)
 		if err == nil {
 			return
@@ -159,6 +163,7 @@ func (g *getter) retryGetChunk(c *chunk) {
 		log.Printf("Error on attempt %d: retrying chunk: %v, Error: %s", i, c, err)
 	}
 	g.err = err
+	close(g.quit) // out of tries, ensure quit by closing channel
 }
 
 func (g *getter) getChunk(c *chunk) error {
@@ -200,7 +205,10 @@ func (g *getter) Read(p []byte) (int, error) {
 		return 0, g.err
 	}
 	if g.cur_chunk == nil {
-		g.cur_chunk = g.find_next_chunk()
+		g.cur_chunk, err = g.find_next_chunk()
+		if err != nil {
+			return 0, err
+		}
 	}
 	// write to md5 hash in parallel with output
 	tr := io.TeeReader(g.cur_chunk.b, g.md5)
@@ -220,16 +228,22 @@ func (g *getter) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (g *getter) find_next_chunk() (cur_chunk *chunk) {
+func (g *getter) find_next_chunk() (cur_chunk *chunk, err error) {
 	for {
+
 		// first check q_wait
-		if cur_chunk, ok := g.q_wait[g.cur_chunk_id]; ok {
+		cur_chunk = g.q_wait[g.cur_chunk_id]
+		if cur_chunk != nil {
 			delete(g.q_wait, g.cur_chunk_id)
-			return cur_chunk
+			return
 		}
 		// if next chunk not in q_wait, read from channel
-		c := <-g.read_ch
-		g.q_wait[c.id] = c
+		select {
+		case c := <-g.read_ch:
+			g.q_wait[c.id] = c
+		case <-g.quit:
+			return nil, g.err // fatal error, quit.
+		}
 	}
 }
 

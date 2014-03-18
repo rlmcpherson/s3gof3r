@@ -9,12 +9,14 @@ import (
 	"hash"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 // defined by amazon
@@ -164,6 +166,7 @@ func (p *putter) retryPutPart(part *part) {
 	defer p.wg.Done()
 	var err error
 	for i := 0; i < p.nTry; i++ {
+		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 		part.r.Seek(0, 0)
 		err = p.putPart(part)
 		if err == nil {
