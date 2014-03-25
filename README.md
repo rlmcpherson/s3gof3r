@@ -55,10 +55,7 @@ To install just the package for use in other Go programs:
 
 ### Release Binaries ###
 
-To try the latest release of the gof3r command-line interface without installing go, download the statically-linked binaries:
-
-[linux amd/64 binary (go1.2)](https://github.com/rlmcpherson/s3gof3r/releases/download/v0.3.0/gof3r_linux_amd64_binary.zip)  
-[mac osx binary (go1.2)](https://github.com/rlmcpherson/s3gof3r/releases/download/v0.3.0/gof3r_osx_binary.zip)   
+To try the latest release of the gof3r command-line interface without installing go, download the statically-linked binary for your architecture from **[Github Releases](https://github.com/rlmcpherson/s3gof3r/releases).**
 
 
 
