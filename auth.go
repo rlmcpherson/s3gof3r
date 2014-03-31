@@ -39,7 +39,7 @@ func InstanceKeys() (keys Keys, err error) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 200 {
 		err = newRespError(resp)
 		return
@@ -55,7 +55,7 @@ func InstanceKeys() (keys Keys, err error) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 200 {
 		err = newRespError(resp)
 		return
@@ -65,7 +65,9 @@ func InstanceKeys() (keys Keys, err error) {
 		return
 	}
 
-	json.Unmarshal([]byte(metadata), &creds)
+	if err = json.Unmarshal([]byte(metadata), &creds); err != nil {
+		return
+	}
 	keys = Keys{AccessKey: creds.AccessKeyId,
 		SecretKey:     creds.SecretAccessKey,
 		SecurityToken: creds.Token,
@@ -84,5 +86,3 @@ func EnvKeys() (keys Keys, err error) {
 	}
 	return
 }
-
-

@@ -75,8 +75,12 @@ func (e *respError) Error() string {
 
 func md5Check(r io.ReadSeeker, given string) (err error) {
 	h := md5.New()
-	io.Copy(h, r)
-	r.Seek(0, 0)
+	if _, err = io.Copy(h, r); err != nil {
+		return
+	}
+	if _, err = r.Seek(0, 0); err != nil {
+		return
+	}
 	calculated := fmt.Sprintf("%x", h.Sum(nil))
 	if calculated != given {
 		log.Println(base64.StdEncoding.EncodeToString(h.Sum(nil)))
@@ -88,4 +92,11 @@ func md5Check(r io.ReadSeeker, given string) (err error) {
 func bucketFromUrl(subdomain string) string {
 	s := strings.Split(subdomain, ".")
 	return strings.Join(s[:len(s)-1], ".")
+}
+
+func checkClose(c io.Closer, err *error) {
+	cerr := c.Close()
+	if *err == nil {
+		*err = cerr
+	}
 }

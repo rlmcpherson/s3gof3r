@@ -92,7 +92,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 200 {
 		return nil, newRespError(resp)
 	}
@@ -167,7 +167,6 @@ func (p *putter) retryPutPart(part *part) {
 	var err error
 	for i := 0; i < p.nTry; i++ {
 		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
-		part.r.Seek(0, 0)
 		err = p.putPart(part)
 		if err == nil {
 			p.bp.give <- part.b
@@ -183,6 +182,9 @@ func (p *putter) putPart(part *part) error {
 	v := url.Values{}
 	v.Set("partNumber", strconv.Itoa(part.PartNumber))
 	v.Set("uploadId", p.UploadId)
+	if _, err := part.r.Seek(0, 0); err != nil { // move back to beginning, if retrying
+		return err
+	}
 	req, err := http.NewRequest("PUT", p.url.String()+"?"+v.Encode(), part.r)
 	if err != nil {
 		return err
@@ -194,7 +196,7 @@ func (p *putter) putPart(part *part) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
 	}
@@ -241,7 +243,7 @@ func (p *putter) Close() (err error) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
 	}
@@ -285,7 +287,7 @@ func (p *putter) abort() (err error) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 204 {
 		return newRespError(resp)
 	}
@@ -296,12 +298,13 @@ func (p *putter) abort() (err error) {
 func (p *putter) md5Content(r io.ReadSeeker) (string, string, error) {
 	h := md5.New()
 	mw := io.MultiWriter(h, p.md5)
-	io.Copy(mw, r)
+	if _, err := io.Copy(mw, r); err != nil {
+		return "", "", err
+	}
 	sum := h.Sum(nil)
 	hexSum := fmt.Sprintf("%x", sum)
 	// add to checksum of all parts for verification on upload completion
-	_, err := p.md5OfParts.Write(sum)
-	if err != nil {
+	if _, err := p.md5OfParts.Write(sum); err != nil {
 		return "", "", err
 	}
 	return base64.StdEncoding.EncodeToString(sum), hexSum, nil
@@ -326,7 +329,7 @@ func (p *putter) putMd5() (err error) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
 	}
@@ -353,7 +356,9 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		}
 		log.Println(err)
 		if body != nil {
-			body.Seek(0, 0)
+			if _, err = body.Seek(0, 0); err != nil {
+				return
+			}
 		}
 	}
 	return

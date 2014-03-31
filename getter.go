@@ -77,7 +77,7 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	if err != nil {
 		return nil, nil, err
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 200 {
 		return nil, nil, newRespError(resp)
 	}
@@ -111,7 +111,9 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 		}
 		log.Println(err)
 		if body != nil {
-			body.Seek(0, 0)
+			if _, err = body.Seek(0, 0); err != nil {
+				return
+			}
 		}
 	}
 	return
@@ -180,7 +182,7 @@ func (g *getter) getChunk(c *chunk) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 206 {
 		return newRespError(resp)
 	}
@@ -277,7 +279,7 @@ func (g *getter) checkMd5() (err error) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("MD5 check failed: %s not found: %s", md5Url.String(), newRespError(resp))
 	}
