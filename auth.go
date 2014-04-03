@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 )
 
 // Keys for an Amazon Web Services account.
@@ -35,7 +36,7 @@ func InstanceKeys() (keys Keys, err error) {
 
 	// request the role name for the instance
 	// assumes there is only one
-	resp, err := http.Get(rolePath)
+	resp, err := ClientWithTimeout(2 * time.Second).Get(rolePath)
 	if err != nil {
 		return
 	}
