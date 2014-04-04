@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -51,25 +53,30 @@ func max64(a, b int64) int64 {
 	return b
 }
 
-// Error type and functions for http requests/responses
+// Error type and functions for http response
+// http://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html
 type respError struct {
-	r *http.Response
-	b bytes.Buffer
+	r         *http.Response
+	Code      string
+	Message   string
+	Resource  string
+	RequestId string
 }
 
 func newRespError(r *http.Response) *respError {
 	e := new(respError)
 	e.r = r
-	io.Copy(&e.b, r.Body)
+	b, _ := ioutil.ReadAll(r.Body)
+	xml.NewDecoder(bytes.NewReader(b)).Decode(e) // parse error from response
 	r.Body.Close()
 	return e
 }
 
 func (e *respError) Error() string {
 	return fmt.Sprintf(
-		"http status error:  %d: %q",
+		"Error:  %d: %q",
 		e.r.StatusCode,
-		e.b.String(),
+		e.Message,
 	)
 }
 
