@@ -72,8 +72,8 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g.client = c.Client
 	g.md5 = md5.New()
 
-	// get content length
-	resp, err := g.retryRequest("HEAD", p_url.String(), nil)
+	// use get instead of head for error messaging
+	resp, err := g.retryRequest("GET", p_url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
