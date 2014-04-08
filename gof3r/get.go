@@ -52,14 +52,15 @@ func (get *Get) Execute(args []string) (err error) {
 	if err != nil {
 		return
 	}
+	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, get.Debug)
 	if _, err = io.Copy(w, r); err != nil {
 		return
 	}
 	if err = r.Close(); err != nil {
 		return
 	}
-	log.Println("Headers: ", header)
 	if get.Debug {
+		log.Println("Headers: ", header)
 		debug()
 	}
 	return

@@ -5,6 +5,8 @@ package s3gof3r
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -45,7 +47,7 @@ var DefaultConfig = &Config{
 
 // http client timeout
 const (
-	clientTimeout = 5 * time.Second
+	clientTimeout = 2 * time.Second
 )
 
 // DefaultDomain is set to the endpoint for the U.S. S3 service.
@@ -103,4 +105,37 @@ func (b *Bucket) Url(path string, c *Config) url.URL {
 		panic(err)
 	}
 	return *url_
+}
+
+type int_logger struct {
+	*log.Logger
+	debug bool
+}
+
+var logger int_logger
+
+func (l *int_logger) debugPrintln(v ...interface{}) {
+	if logger.debug {
+		logger.Println(v...)
+	}
+}
+
+func (l *int_logger) debugPrintf(format string, v ...interface{}) {
+	if logger.debug {
+		logger.Printf(format, v...)
+	}
+}
+
+func SetLogger(out io.Writer, prefix string, flag int, debug bool) {
+	logger = int_logger{
+		log.New(out, prefix, flag),
+		debug,
+	}
+}
+
+func init() {
+	logger = int_logger{
+		log.New(ioutil.Discard, "", log.LstdFlags),
+		false,
+	}
 }
