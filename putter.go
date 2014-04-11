@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -172,7 +171,7 @@ func (p *putter) retryPutPart(part *part) {
 			p.bp.give <- part.b
 			return
 		}
-		log.Printf("Error on attempt %d: Retrying part: %v, Error: %s", i, part, err)
+		logger.debugPrintf("Error on attempt %d: Retrying part: %v, Error: %s", i, part, err)
 	}
 	p.err = err
 }
@@ -230,7 +229,7 @@ func (p *putter) Close() (err error) {
 		}
 		return p.err
 	}
-	log.Println("makes:", p.bp.makes)
+	logger.debugPrintln("makes:", p.bp.makes)
 	// Complete Multipart upload
 	body, err := xml.Marshal(p.xml)
 	if err != nil {
@@ -266,8 +265,8 @@ func (p *putter) Close() (err error) {
 		return fmt.Errorf("MD5 hash of part hashes comparison failed. Hash from multipart complete header: %s."+
 			" Calculated multipart hash: %s.", remoteMd5ofParts, calculatedMd5ofParts)
 	}
-	//log.Println("Hash from multipart complete header:", remoteMd5ofParts)
-	//log.Println("Calculated multipart hash:", calculatedMd5ofParts)
+	//logger.debugPrintln("Hash from multipart complete header:", remoteMd5ofParts)
+	//logger.debugPrintln("Calculated multipart hash:", calculatedMd5ofParts)
 	if p.c.Md5Check {
 		for i := 0; i < p.nTry; i++ {
 			if err = p.putMd5(); err == nil {
@@ -318,8 +317,8 @@ func (p *putter) putMd5() (err error) {
 	md5Reader := strings.NewReader(calcMd5)
 	md5Path := fmt.Sprint(".md5", p.url.Path, ".md5")
 	md5Url := p.b.Url(md5Path, p.c)
-	log.Println("md5: ", calcMd5)
-	log.Println("md5Path: ", md5Path)
+	logger.debugPrintln("md5: ", calcMd5)
+	logger.debugPrintln("md5Path: ", md5Path)
 	r, err := http.NewRequest("PUT", md5Url.String(), md5Reader)
 	if err != nil {
 		return
@@ -354,7 +353,7 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		if err == nil {
 			return
 		}
-		log.Println(err)
+		logger.debugPrintln(err)
 		if body != nil {
 			if _, err = body.Seek(0, 0); err != nil {
 				return
