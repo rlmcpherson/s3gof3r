@@ -107,9 +107,10 @@ func (b *Bucket) Url(path string, c *Config) url.URL {
 	return *url_
 }
 
-// SetLogger wraps the standard library log package, allowing the internal
-// logging of s3gof3r to be set to a desired output and format. Setting debug to true
-// enables debug logging output as well. s3gof3r does not log by default.
+// SetLogger wraps the standard library log package.
+//
+// It allows the internal logging of s3gof3r to be set to a desired output and format.
+// Setting debug to true enables debug logging output. s3gof3r does not log output by default.
 func SetLogger(out io.Writer, prefix string, flag int, debug bool) {
 	logger = internalLogger{
 		log.New(out, prefix, flag),
