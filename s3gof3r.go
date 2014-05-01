@@ -107,34 +107,38 @@ func (b *Bucket) Url(path string, c *Config) url.URL {
 	return *url_
 }
 
-type int_logger struct {
-	*log.Logger
-	debug bool
-}
-
-var logger int_logger
-
-func (l *int_logger) debugPrintln(v ...interface{}) {
-	if logger.debug {
-		logger.Println(v...)
-	}
-}
-
-func (l *int_logger) debugPrintf(format string, v ...interface{}) {
-	if logger.debug {
-		logger.Printf(format, v...)
-	}
-}
-
+// SetLogger wraps the standard library log package, allowing the internal
+// logging of s3gof3r to be set to a desired output and format. Setting debug to true
+// enables debug logging output as well. s3gof3r does not log by default.
 func SetLogger(out io.Writer, prefix string, flag int, debug bool) {
-	logger = int_logger{
+	logger = internalLogger{
 		log.New(out, prefix, flag),
 		debug,
 	}
 }
 
+type internalLogger struct {
+	*log.Logger
+	debug bool
+}
+
+var logger internalLogger
+
+func (l *internalLogger) debugPrintln(v ...interface{}) {
+	if logger.debug {
+		logger.Println(v...)
+	}
+}
+
+func (l *internalLogger) debugPrintf(format string, v ...interface{}) {
+	if logger.debug {
+		logger.Printf(format, v...)
+	}
+}
+
+// Initialize internal logger to log to no-op (ioutil.Discard) by default.
 func init() {
-	logger = int_logger{
+	logger = internalLogger{
 		log.New(ioutil.Discard, "", log.LstdFlags),
 		false,
 	}
