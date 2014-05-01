@@ -34,10 +34,11 @@ func (get *Get) Execute(args []string) (err error) {
 	conf.Md5Check = !get.CheckDisable
 	get.Key = url.QueryEscape(get.Key)
 
+	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, get.Debug)
+
 	if get.VersionId != "" {
 		get.Key = fmt.Sprintf("%s?versionId=%s", get.Key, get.VersionId)
 	}
-	log.Println("GET: ", get)
 
 	w, err := os.Create(get.Path)
 	if err != nil {
@@ -58,8 +59,8 @@ func (get *Get) Execute(args []string) (err error) {
 	if err = r.Close(); err != nil {
 		return
 	}
-	log.Println("Headers: ", header)
 	if get.Debug {
+		log.Println("Headers: ", header)
 		debug()
 	}
 	return

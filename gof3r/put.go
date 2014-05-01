@@ -33,7 +33,8 @@ func (put *Put) Execute(args []string) (err error) {
 	conf.PartSize = put.PartSize
 	conf.Md5Check = !put.CheckDisable
 	put.Key = url.QueryEscape(put.Key)
-	log.Println(put)
+	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, put.Debug)
+
 	if put.Header == nil {
 		put.Header = make(http.Header)
 	}

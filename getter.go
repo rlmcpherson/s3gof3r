@@ -7,7 +7,6 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -84,9 +83,9 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g.content_length = resp.ContentLength
 	g.chunk_total = int((g.content_length + g.bufsz - 1) / g.bufsz) // round up, integer division
 	g.concurrency = min(c.Concurrency, g.chunk_total)
-	log.Println("chunk total: ", g.chunk_total)
-	log.Println("content length : ", g.content_length)
-	log.Println("concurrency: ", g.concurrency)
+	logger.debugPrintln("chunk total: ", g.chunk_total)
+	logger.debugPrintln("content length : ", g.content_length)
+	logger.debugPrintln("concurrency: ", g.concurrency)
 
 	g.bp = newBufferPool(g.bufsz)
 
@@ -109,7 +108,7 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 		if err == nil {
 			return
 		}
-		log.Println(err)
+		logger.debugPrintln(err)
 		if body != nil {
 			if _, err = body.Seek(0, 0); err != nil {
 				return
@@ -162,7 +161,7 @@ func (g *getter) retryGetChunk(c *chunk) {
 		if err == nil {
 			return
 		}
-		log.Printf("Error on attempt %d: retrying chunk: %v, Error: %s", i, c, err)
+		logger.debugPrintf("Error on attempt %d: retrying chunk: %v, Error: %s", i, c, err)
 	}
 	g.err = err
 	close(g.quit) // out of tries, ensure quit by closing channel
@@ -260,7 +259,7 @@ func (g *getter) Close() error {
 	close(g.read_ch)
 	g.bp.quit <- true
 	g.closed = true
-	log.Println("makes:", g.bp.makes)
+	logger.debugPrintln("makes:", g.bp.makes)
 	if g.c.Md5Check {
 		if err := g.checkMd5(); err != nil {
 			return err
@@ -273,8 +272,8 @@ func (g *getter) checkMd5() (err error) {
 	calcMd5 := fmt.Sprintf("%x", g.md5.Sum(nil))
 	md5Path := fmt.Sprint(".md5", g.url.Path, ".md5")
 	md5Url := g.b.Url(md5Path, g.c)
-	log.Println("md5: ", calcMd5)
-	log.Println("md5Path: ", md5Path)
+	logger.debugPrintln("md5: ", calcMd5)
+	logger.debugPrintln("md5Path: ", md5Path)
 	resp, err := g.retryRequest("GET", md5Url.String(), nil)
 	if err != nil {
 		return

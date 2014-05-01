@@ -5,6 +5,8 @@ package s3gof3r
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -103,4 +105,42 @@ func (b *Bucket) Url(path string, c *Config) url.URL {
 		panic(err)
 	}
 	return *url_
+}
+
+// SetLogger wraps the standard library log package.
+//
+// It allows the internal logging of s3gof3r to be set to a desired output and format.
+// Setting debug to true enables debug logging output. s3gof3r does not log output by default.
+func SetLogger(out io.Writer, prefix string, flag int, debug bool) {
+	logger = internalLogger{
+		log.New(out, prefix, flag),
+		debug,
+	}
+}
+
+type internalLogger struct {
+	*log.Logger
+	debug bool
+}
+
+var logger internalLogger
+
+func (l *internalLogger) debugPrintln(v ...interface{}) {
+	if logger.debug {
+		logger.Println(v...)
+	}
+}
+
+func (l *internalLogger) debugPrintf(format string, v ...interface{}) {
+	if logger.debug {
+		logger.Printf(format, v...)
+	}
+}
+
+// Initialize internal logger to log to no-op (ioutil.Discard) by default.
+func init() {
+	logger = internalLogger{
+		log.New(ioutil.Discard, "", log.LstdFlags),
+		false,
+	}
 }
