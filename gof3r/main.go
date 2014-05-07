@@ -96,6 +96,8 @@ type CommonOpts struct {
 	//Url         string      `short:"u" long:"url" description:"Url of S3 object"` //TODO: bring back url support
 	Key          string `long:"key" short:"k" description:"key of s3 object" required:"true"`
 	Bucket       string `long:"bucket" short:"b" description:"s3 bucket" required:"true"`
+	Proxy        string `long:"proxy" description:"http proxy"`
+	WithoutSSL   bool   `long:"without-ssl" description:"do not use SSL for endpoint connection"`
 	CheckDisable bool   `long:"md5Check-off" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets."`
 	Concurrency  int    `long:"concurrency" short:"c" default:"10" description:"Concurrency of transfers"`
 	PartSize     int64  `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20971520"`

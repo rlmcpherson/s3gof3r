@@ -25,7 +25,7 @@ func (get *Get) Execute(args []string) (err error) {
 	if err != nil {
 		return
 	}
-	s3 := s3gof3r.New(get.EndPoint, k)
+	s3 := s3gof3r.New(get.WithoutSSL, get.EndPoint, get.Proxy, k)
 	b := s3.Bucket(get.Bucket)
 	if get.Concurrency > 0 {
 		conf.Concurrency = get.Concurrency

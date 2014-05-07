@@ -15,7 +15,9 @@ import (
 // S3 contains the domain or endpoint of an S3-compatible service and
 // the authentication keys for that service.
 type S3 struct {
-	Domain string // The s3-compatible endpoint. Defaults to "s3.amazonaws.com"
+	WithoutSSL bool     // Whether to use SSL to connect to Domain
+	Domain     string   // The s3-compatible endpoint. Defaults to "s3.amazonaws.com"
+	ProxyURL   *url.URL // Proxy URL for HTTP client
 	Keys
 }
 
@@ -33,7 +35,6 @@ type Config struct {
 	NTry         int   // maximum attempts for each part
 	Md5Check     bool  // The md5 hash of the object is stored in <bucket>/.md5/<object_key>.md5
 	// When true, it is stored on puts and verified on gets
-	Scheme string // url scheme, defaults to 'https'
 }
 
 // DefaultConfig contains defaults used if *Config is nil
@@ -42,7 +43,6 @@ var DefaultConfig = &Config{
 	PartSize:    20 * mb,
 	NTry:        10,
 	Md5Check:    true,
-	Scheme:      "https",
 }
 
 // http client timeout
@@ -55,11 +55,17 @@ var DefaultDomain = "s3.amazonaws.com"
 
 // New Returns a new S3
 // domain defaults to DefaultDomain if empty
-func New(domain string, keys Keys) *S3 {
+func New(withoutSSL bool, domain string, proxyURL string, keys Keys) *S3 {
 	if domain == "" {
 		domain = DefaultDomain
 	}
-	return &S3{domain, keys}
+
+	parsedProxyURL, err := url.Parse(proxyURL)
+	if len(parsedProxyURL.Host) == 0 || err != nil || !withoutSSL {
+		parsedProxyURL = nil
+	}
+
+	return &S3{withoutSSL, domain, parsedProxyURL, keys}
 }
 
 // Bucket returns a bucket on s3
@@ -78,7 +84,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 		c = DefaultConfig
 	}
 	if c.Client == nil {
-		c.Client = ClientWithTimeout(clientTimeout)
+		c.Client = ClientWithTimeout(b.S3.ProxyURL, clientTimeout)
 	}
 	return newGetter(b.Url(path, c), c, b)
 }
@@ -93,14 +99,22 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 		c = DefaultConfig
 	}
 	if c.Client == nil {
-		c.Client = ClientWithTimeout(clientTimeout)
+		c.Client = ClientWithTimeout(b.S3.ProxyURL, clientTimeout)
 	}
 	return newPutter(b.Url(path, c), h, c, b)
 }
 
 // Url returns a parsed url to the given path, using the scheme specified in Config.Scheme
 func (b *Bucket) Url(path string, c *Config) url.URL {
-	url_, err := url.Parse(fmt.Sprintf("%s://%s.%s/%s", c.Scheme, b.Name, b.S3.Domain, path))
+	var scheme string
+
+	if b.S3.WithoutSSL {
+		scheme = "http"
+	} else {
+		scheme = "https"
+	}
+
+	url_, err := url.Parse(fmt.Sprintf("%s://%s.%s/%s", scheme, b.Name, b.S3.Domain, path))
 	if err != nil {
 		panic(err)
 	}
