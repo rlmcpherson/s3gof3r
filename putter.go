@@ -85,7 +85,6 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	p.concurrency = c.Concurrency
 	p.nTry = c.NTry
 	p.c = c
-
 	p.bufsz = max64(minPartSize, c.PartSize)
 	resp, err := p.retryRequest("POST", url.String()+"?uploads", nil, h)
 	if err != nil {
@@ -107,6 +106,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	p.md5 = md5.New()
 
 	p.bp = newBufferPool(p.bufsz)
+
 	return p, nil
 }
 
@@ -125,6 +125,7 @@ func (p *putter) Write(b []byte) (int, error) {
 	if err != nil {
 		return n, err
 	}
+
 	if int64(p.buf.Len()) >= p.bufsz {
 		p.flush()
 	}
@@ -212,7 +213,6 @@ func (p *putter) Close() (err error) {
 		return syscall.EINVAL
 	}
 	if p.buf != nil {
-
 		buf := *p.buf
 		if buf.Len() > 0 {
 			p.flush()
@@ -222,6 +222,10 @@ func (p *putter) Close() (err error) {
 	close(p.ch)
 	p.closed = true
 	p.bp.quit <- true
+
+	if p.part == 0 {
+		return fmt.Errorf("0 bytes written")
+	}
 	if p.err != nil {
 		err := p.abort()
 		if err != nil {
@@ -229,7 +233,7 @@ func (p *putter) Close() (err error) {
 		}
 		return p.err
 	}
-	logger.debugPrintln("makes:", p.bp.makes)
+	logger.debugPrintln("buffer allocations:", p.bp.makes)
 	// Complete Multipart upload
 	body, err := xml.Marshal(p.xml)
 	if err != nil {
@@ -265,8 +269,6 @@ func (p *putter) Close() (err error) {
 		return fmt.Errorf("MD5 hash of part hashes comparison failed. Hash from multipart complete header: %s."+
 			" Calculated multipart hash: %s.", remoteMd5ofParts, calculatedMd5ofParts)
 	}
-	//logger.debugPrintln("Hash from multipart complete header:", remoteMd5ofParts)
-	//logger.debugPrintln("Calculated multipart hash:", calculatedMd5ofParts)
 	if p.c.Md5Check {
 		for i := 0; i < p.nTry; i++ {
 			if err = p.putMd5(); err == nil {
