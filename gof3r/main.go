@@ -103,7 +103,7 @@ type CommonOpts struct {
 	Debug        bool   `long:"debug" description:"Print debug statements and dump stacks."`
 }
 
-var parser = flags.NewParser(&AppOpts, flags.Default)
+var parser = flags.NewParser(&AppOpts, (flags.HelpFlag | flags.PassDoubleDash))
 
 func main() {
 	// set the number of processors to use to the number of cpus for parallelization of concurrent transfers
@@ -117,6 +117,7 @@ func main() {
 	// parser calls the Execute functions on Get and Put, after parsing the command line options.
 	start := time.Now()
 	if _, err := parser.Parse(); err != nil {
+		fmt.Fprintf(os.Stderr, "gof3r error: %s\n", err)
 		os.Exit(1)
 	}
 	log.Println("Duration:", time.Since(start))

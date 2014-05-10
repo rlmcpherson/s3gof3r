@@ -74,7 +74,7 @@ func newRespError(r *http.Response) *respError {
 
 func (e *respError) Error() string {
 	return fmt.Sprintf(
-		"Error:  %d: %q",
+		"%d: %q",
 		e.r.StatusCode,
 		e.Message,
 	)
