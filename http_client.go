@@ -3,7 +3,6 @@ package s3gof3r
 import (
 	"net"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -26,9 +25,8 @@ func (c *deadlineConn) Write(b []byte) (n int, err error) {
 	return c.Conn.Write(b)
 }
 
-func ClientWithTimeout(proxyURL *url.URL, timeout time.Duration) *http.Client {
+func ClientWithTimeout(timeout time.Duration) *http.Client {
 	transport := &http.Transport{
-		Proxy: http.ProxyURL(proxyURL),
 		Dial: func(netw, addr string) (net.Conn, error) {
 			c, err := net.DialTimeout(netw, addr, timeout)
 			if err != nil {
