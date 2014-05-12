@@ -27,6 +27,7 @@ func (c *deadlineConn) Write(b []byte) (n int, err error) {
 
 func ClientWithTimeout(timeout time.Duration) *http.Client {
 	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
 		Dial: func(netw, addr string) (net.Conn, error) {
 			c, err := net.DialTimeout(netw, addr, timeout)
 			if err != nil {
