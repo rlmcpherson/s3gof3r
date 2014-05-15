@@ -30,6 +30,9 @@ func (put *Put) Execute(args []string) (err error) {
 	if put.Concurrency > 0 {
 		conf.Concurrency = put.Concurrency
 	}
+	if put.WithoutSSL {
+		conf.Scheme = "http"
+	}
 	conf.PartSize = put.PartSize
 	conf.Md5Check = !put.CheckDisable
 	put.Key = url.QueryEscape(put.Key)

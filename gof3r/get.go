@@ -30,6 +30,9 @@ func (get *Get) Execute(args []string) (err error) {
 	if get.Concurrency > 0 {
 		conf.Concurrency = get.Concurrency
 	}
+	if get.WithoutSSL {
+		conf.Scheme = "http"
+	}
 	conf.PartSize = get.PartSize
 	conf.Md5Check = !get.CheckDisable
 	get.Key = url.QueryEscape(get.Key)
