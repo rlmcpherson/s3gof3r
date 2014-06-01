@@ -27,7 +27,7 @@ type Bucket struct {
 
 // Config includes configuration parameters for s3gof3r
 type Config struct {
-	*http.Client       // nil to use s3gof3r default client
+	*http.Client       // http client to use for requests
 	Concurrency  int   // number of parts to get or put concurrently
 	PartSize     int64 // initial  part size in bytes to use for multipart gets or puts
 	NTry         int   // maximum attempts for each part
@@ -43,6 +43,7 @@ var DefaultConfig = &Config{
 	NTry:        10,
 	Md5Check:    true,
 	Scheme:      "https",
+	Client:      ClientWithTimeout(clientTimeout),
 }
 
 // http client timeout
@@ -77,9 +78,6 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 	if c == nil {
 		c = DefaultConfig
 	}
-	if c.Client == nil {
-		c.Client = ClientWithTimeout(clientTimeout)
-	}
 	return newGetter(b.Url(path, c), c, b)
 }
 
@@ -91,9 +89,6 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteCloser, err error) {
 	if c == nil {
 		c = DefaultConfig
-	}
-	if c.Client == nil {
-		c.Client = ClientWithTimeout(clientTimeout)
 	}
 	return newPutter(b.Url(path, c), h, c, b)
 }
