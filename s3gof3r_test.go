@@ -3,6 +3,7 @@ package s3gof3r
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -106,28 +107,59 @@ func errorMatch(expect, actual error) bool {
 
 }
 
-func ExampleBucket_PutWriter() {
-
-	file, err := os.Open("fileName") // open file to upload
-	if err != nil {
-		return
-	}
+func ExampleBucket_PutWriter() error {
 
 	k, err := EnvKeys() // get S3 keys from environment
 	if err != nil {
-		return
+		return err
 	}
 	// Open bucket to put file into
 	s3 := New("", k)
 	b := s3.Bucket("bucketName")
 
+	// open file to upload
+	file, err := os.Open("fileName")
+	if err != nil {
+		return err
+	}
+
 	// Open a PutWriter for upload
 	w, err := b.PutWriter(file.Name(), nil, nil)
 	if err != nil {
-		return
+		return err
 	}
-	defer w.Close()
 	if _, err = io.Copy(w, file); err != nil { // Copy into S3
-		return
+		return err
 	}
+	if err = w.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ExampleBucket_GetReader() error {
+
+	k, err := EnvKeys() // get S3 keys from environment
+	if err != nil {
+		return err
+	}
+
+	// Open bucket to put file into
+	s3 := New("", k)
+	b := s3.Bucket("bucketName")
+
+	r, h, err := b.GetReader("keyName", nil)
+	if err != nil {
+		return err
+	}
+	// stream to standard output
+	if _, err = io.Copy(os.Stdout, r); err != nil {
+		return err
+	}
+	err = r.Close()
+	if err != nil {
+		return err
+	}
+	fmt.Println(h) // print key header data
+	return nil
 }
