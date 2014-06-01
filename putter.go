@@ -112,9 +112,11 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 
 func (p *putter) Write(b []byte) (int, error) {
 	if p.closed {
+		p.abort()
 		return 0, syscall.EINVAL
 	}
 	if p.err != nil {
+		p.abort()
 		return 0, p.err
 	}
 	if p.buf == nil {
@@ -123,6 +125,7 @@ func (p *putter) Write(b []byte) (int, error) {
 	}
 	n, err := p.buf.Write(b)
 	if err != nil {
+		p.abort()
 		return n, err
 	}
 
@@ -227,10 +230,7 @@ func (p *putter) Close() (err error) {
 		return fmt.Errorf("0 bytes written")
 	}
 	if p.err != nil {
-		err := p.abort()
-		if err != nil {
-			return err
-		}
+		p.abort()
 		return p.err
 	}
 	logger.debugPrintln("buffer allocations:", p.bp.makes)
@@ -280,17 +280,17 @@ func (p *putter) Close() (err error) {
 	return
 }
 
-func (p *putter) abort() (err error) {
+func (p *putter) abort() {
 	v := url.Values{}
 	v.Set("uploadId", p.UploadId)
 	s := p.url.String() + "?" + v.Encode()
 	resp, err := p.retryRequest("DELETE", s, nil, nil)
 	if err != nil {
-		return
+		logger.Printf("Error aborting multipart upload: %v", err)
 	}
 	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 204 {
-		return newRespError(resp)
+		logger.Printf("Error aborting multipart upload: %v", newRespError(resp))
 	}
 	return
 }
