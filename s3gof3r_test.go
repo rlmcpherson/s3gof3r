@@ -1,6 +1,11 @@
 package s3gof3r
 
 import (
+	"bytes"
+	"errors"
+	"io"
+	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -13,37 +18,90 @@ type putTest struct {
 }
 
 type getTest struct {
-	url       string
-	file_path string
-	out       string
-}
-
-var putTests = []putTest{
-	{"https://foo", "bar_file", "a:b", false, "out"},
+	path   string
+	config *Config
+	rSize  int64
+	err    error
 }
 
 var getTests = []getTest{
-	{"https://foo", "bar_file", "out"},
+	{"testfile", nil, 22, nil},
+	{"NoKey", nil, 0, &respError{StatusCode: 404, Message: "The specified key does not exist."}},
 }
 
-func TestPut(t *testing.T) {
-	for _, tt := range putTests {
-		actual := ""
-		if actual != tt.out {
-			t.Errorf("put called with %s, %s, %s. Expected %s, actual %s",
-				tt.url, tt.file_path, tt.header, tt.out, actual)
-
-		}
+func TestGetReader(t *testing.T) {
+	b, err := testBucket()
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestGet(t *testing.T) {
 	for _, tt := range getTests {
-		actual := ""
-		if actual != tt.out {
-			t.Errorf("get called with %s, %s. Expected %s, actual %s",
-				tt.url, tt.file_path, tt.out, actual)
+		r, h, err := b.GetReader(tt.path, tt.config)
+		if !errorMatch(err, tt.err) {
+			t.Errorf("GetReader called with %v\n Expected: %v\n Actual:   %v\n", tt, tt.err, err)
+		}
+		if err != nil {
+			break
+		}
+		t.Logf("headers %v\n", h)
+		w := ioutil.Discard
+
+		n, err := io.Copy(w, r)
+		if err != nil {
+			t.Error(err)
+		}
+		if n != tt.rSize {
+			t.Errorf("Expected size: %d. Actual: %d", tt.rSize, n)
 
 		}
+		err = r.Close()
+		if err != nil {
+			t.Error(err)
+		}
+
 	}
+}
+
+func testBucket() (*Bucket, error) {
+	k, err := EnvKeys()
+	if err != nil {
+		return nil, err
+	}
+	bucket := os.Getenv("TEST_BUCKET")
+	if bucket == "" {
+		return nil, errors.New("TEST_BUCKET must be set in environment.")
+
+	}
+	s3 := New("", k)
+	b := s3.Bucket(bucket)
+
+	w, err := b.PutWriter("testfile", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	r := bytes.NewReader([]byte("Test file content....."))
+	_, err = io.Copy(w, r)
+	if err != nil {
+		return nil, err
+	}
+	err = w.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+
+}
+
+func errorMatch(expect, actual error) bool {
+
+	if expect == nil && actual == nil {
+		return true
+	}
+
+	if expect == nil || actual == nil {
+		return false
+	}
+
+	return expect.Error() == actual.Error()
+
 }
