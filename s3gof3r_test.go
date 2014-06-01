@@ -105,3 +105,29 @@ func errorMatch(expect, actual error) bool {
 	return expect.Error() == actual.Error()
 
 }
+
+func ExampleBucket_PutWriter() {
+
+	file, err := os.Open("fileName") // open file to upload
+	if err != nil {
+		return
+	}
+
+	k, err := EnvKeys() // get S3 keys from environment
+	if err != nil {
+		return
+	}
+	// Open bucket to put file into
+	s3 := New("", k)
+	b := s3.Bucket("bucketName")
+
+	// Open a PutWriter for upload
+	w, err := b.PutWriter(file.Name(), nil, nil)
+	if err != nil {
+		return
+	}
+	defer w.Close()
+	if _, err = io.Copy(w, file); err != nil { // Copy into S3
+		return
+	}
+}
