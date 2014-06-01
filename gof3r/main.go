@@ -163,6 +163,4 @@ func debug() {
 	f.Close()
 	fg.Close()
 	fb.Close()
-	time.Sleep(1 * time.Second)
-	panic("Debugging: Dump the stacks:")
 }
