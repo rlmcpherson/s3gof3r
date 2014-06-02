@@ -6,17 +6,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"testing"
 )
-
-type putTest struct {
-	url       string
-	file_path string
-	header    string
-	check     bool
-	out       string
-}
 
 type getTest struct {
 	path   string
@@ -55,6 +48,62 @@ func TestGetReader(t *testing.T) {
 
 		}
 		err = r.Close()
+		if err != nil {
+			t.Error(err)
+		}
+
+	}
+}
+
+type putTest struct {
+	path   string
+	data   []byte
+	header http.Header
+	config *Config
+	wSize  int64
+	err    error
+}
+
+var putTests = []putTest{
+	{"testfile", []byte("test_data"), nil, nil, 9, nil},
+	{"", []byte("test_data"), nil, nil,
+		9, &respError{StatusCode: 400, Message: "A key must be specified"}},
+	{"testfile", []byte(""), nil, nil, 1, nil}, //bug?
+	{"testfile", []byte("foo"), correct_header(), nil, 3, nil},
+}
+
+func correct_header() http.Header {
+	header := make(http.Header)
+	header.Add("x-amz-server-side-encryption", "AES256")
+	header.Add("x-amz-meta-foometadata", "testmeta")
+
+	return header
+}
+
+func TestPutWriter(t *testing.T) {
+	b, err := testBucket()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range putTests {
+		w, err := b.PutWriter(tt.path, tt.header, tt.config)
+		if !errorMatch(err, tt.err) {
+			t.Errorf("PutWriter called with %v\n Expected: %v\n Actual:   %v\n", tt, tt.err, err)
+		}
+		if err != nil {
+			break
+		}
+		r := bytes.NewReader(tt.data)
+
+		n, err := io.Copy(w, r)
+		if err != nil {
+			t.Error(err)
+		}
+		if n != tt.wSize {
+			t.Errorf("Expected size: %d. Actual: %d", tt.wSize, n)
+
+		}
+		err = w.Close()
 		if err != nil {
 			t.Error(err)
 		}
