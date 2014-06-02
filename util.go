@@ -2,13 +2,11 @@ package s3gof3r
 
 import (
 	"bytes"
-	"crypto/md5"
-	"encoding/base64"
+
 	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -78,22 +76,6 @@ func (e *respError) Error() string {
 		e.StatusCode,
 		e.Message,
 	)
-}
-
-func md5Check(r io.ReadSeeker, given string) (err error) {
-	h := md5.New()
-	if _, err = io.Copy(h, r); err != nil {
-		return
-	}
-	if _, err = r.Seek(0, 0); err != nil {
-		return
-	}
-	calculated := fmt.Sprintf("%x", h.Sum(nil))
-	if calculated != given {
-		log.Println(base64.StdEncoding.EncodeToString(h.Sum(nil)))
-		return fmt.Errorf("md5 mismatch. given:%s calculated:%s", given, calculated)
-	}
-	return nil
 }
 
 func bucketFromUrl(subdomain string) string {
