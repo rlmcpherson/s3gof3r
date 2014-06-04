@@ -213,6 +213,7 @@ func (p *putter) putPart(part *part) error {
 
 func (p *putter) Close() (err error) {
 	if p.closed {
+		p.abort()
 		return syscall.EINVAL
 	}
 	if p.buf != nil {
@@ -227,6 +228,7 @@ func (p *putter) Close() (err error) {
 	p.bp.quit <- true
 
 	if p.part == 0 {
+		p.abort()
 		return fmt.Errorf("0 bytes written")
 	}
 	if p.err != nil {
@@ -237,6 +239,7 @@ func (p *putter) Close() (err error) {
 	// Complete Multipart upload
 	body, err := xml.Marshal(p.xml)
 	if err != nil {
+		p.abort()
 		return
 	}
 	b := bytes.NewReader(body)
@@ -244,10 +247,12 @@ func (p *putter) Close() (err error) {
 	v.Set("uploadId", p.UploadId)
 	resp, err := p.retryRequest("POST", p.url.String()+"?"+v.Encode(), b, nil)
 	if err != nil {
+		p.abort()
 		return
 	}
 	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 200 {
+		p.abort()
 		return newRespError(resp)
 	}
 	// Check md5 hash of concatenated part md5 hashes against ETag
@@ -262,7 +267,6 @@ func (p *putter) Close() (err error) {
 	remoteMd5ofParts := strings.Split(p.ETag, "-")[0]
 	remoteMd5ofParts = remoteMd5ofParts[1:len(remoteMd5ofParts)]
 	if calculatedMd5ofParts != remoteMd5ofParts {
-		// TODO: Delete file from S3?
 		if err != nil {
 			return err
 		}
@@ -280,6 +284,7 @@ func (p *putter) Close() (err error) {
 	return
 }
 
+// Try to abort multipart upload. Do not error on failure.
 func (p *putter) abort() {
 	v := url.Values{}
 	v.Set("uploadId", p.UploadId)
@@ -287,6 +292,7 @@ func (p *putter) abort() {
 	resp, err := p.retryRequest("DELETE", s, nil, nil)
 	if err != nil {
 		logger.Printf("Error aborting multipart upload: %v", err)
+		return
 	}
 	defer checkClose(resp.Body, &err)
 	if resp.StatusCode != 204 {
