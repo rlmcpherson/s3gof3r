@@ -124,6 +124,11 @@ func testBucket() (*Bucket, error) {
 	s3 := New("", k)
 	b := s3.Bucket(bucket)
 
+	err = b.Create("", false, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	w, err := b.PutWriter("testfile", nil, nil)
 	if err != nil {
 		return nil, err

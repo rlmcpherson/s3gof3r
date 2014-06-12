@@ -5,6 +5,8 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"io"
+	"io/ioutil"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -47,6 +49,42 @@ func (b *Bucket) Sign(req *http.Request) {
 	signature := make([]byte, base64.StdEncoding.EncodedLen(hm.Size()))
 	base64.StdEncoding.Encode(signature, hm.Sum(nil))
 	req.Header.Set("Authorization", "AWS "+b.S3.Keys.AccessKey+":"+string(signature))
+}
+
+func (b *Bucket) Create(accessLevel string, force bool, c *Config) error {
+	if c == nil {
+		c = DefaultConfig
+	}
+
+	if accessLevel == "" {
+		accessLevel = "private"
+	}
+
+	url := b.Url("", c)
+	req, err := http.NewRequest("PUT", url.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Host", url.Host)
+	req.Header.Set("x-amz-acl", accessLevel)
+	b.Sign(req)
+	resp, err :=  c.Client.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode <= 200 && resp.StatusCode <= 206 {
+		return nil
+	} else {
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if !force && resp.StatusCode == 409 && strings.Contains(string(bodyBytes), "BucketAlreadyOwnedByYou") {
+			return nil
+		}
+		return fmt.Errorf("Bucket creation failed with `%d` status code & `%s` response body", resp.StatusCode, bodyBytes)
+	}
 }
 
 // From Amazon API documentation:
