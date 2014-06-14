@@ -41,12 +41,9 @@ type part struct {
 }
 
 type putter struct {
-	url         url.URL
-	client      *http.Client
-	b           *Bucket
-	concurrency int
-	nTry        int
-	c           *Config
+	url url.URL
+	b   *Bucket
+	c   *Config
 
 	bufsz      int64
 	buf        *bytes.Buffer
@@ -80,11 +77,10 @@ type completeXml struct {
 func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err error) {
 	p = new(putter)
 	p.url = url
-	p.client = c.Client
 	p.b = b
-	p.concurrency = c.Concurrency
-	p.nTry = c.NTry
 	p.c = c
+	p.c.Concurrency = max(c.Concurrency, 1)
+	p.c.NTry = max(c.NTry, 1)
 	p.bufsz = max64(minPartSize, c.PartSize)
 	resp, err := p.retryRequest("POST", url.String()+"?uploads", nil, h)
 	if err != nil {
@@ -99,7 +95,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 		return nil, err
 	}
 	p.ch = make(chan *part)
-	for i := 0; i < p.concurrency; i++ {
+	for i := 0; i < p.c.Concurrency; i++ {
 		go p.worker()
 	}
 	p.md5OfParts = md5.New()
@@ -168,7 +164,7 @@ func (p *putter) worker() {
 func (p *putter) retryPutPart(part *part) {
 	defer p.wg.Done()
 	var err error
-	for i := 0; i < p.nTry; i++ {
+	for i := 0; i < p.c.NTry; i++ {
 		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 		err = p.putPart(part)
 		if err == nil {
@@ -195,7 +191,7 @@ func (p *putter) putPart(part *part) error {
 	req.ContentLength = part.len
 	req.Header.Set(md5Header, part.contentMd5)
 	p.b.Sign(req)
-	resp, err := p.client.Do(req)
+	resp, err := p.c.Client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -274,7 +270,7 @@ func (p *putter) Close() (err error) {
 			" Calculated multipart hash: %s.", remoteMd5ofParts, calculatedMd5ofParts)
 	}
 	if p.c.Md5Check {
-		for i := 0; i < p.nTry; i++ {
+		for i := 0; i < p.c.NTry; i++ {
 			if err = p.putMd5(); err == nil {
 				break
 			}
@@ -291,7 +287,7 @@ func (p *putter) abort() {
 	s := p.url.String() + "?" + v.Encode()
 	resp, err := p.retryRequest("DELETE", s, nil, nil)
 	if err != nil {
-		logger.Printf("Error aborting multipart upload: %v", err)
+		logger.Printf("Error aborting multipart upload: %v\n", err)
 		return
 	}
 	defer checkClose(resp.Body, &err)
@@ -332,7 +328,7 @@ func (p *putter) putMd5() (err error) {
 		return
 	}
 	p.b.Sign(r)
-	resp, err := p.client.Do(r)
+	resp, err := p.c.Client.Do(r)
 	if err != nil {
 		return
 	}
@@ -344,7 +340,7 @@ func (p *putter) putMd5() (err error) {
 }
 
 func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.Header) (resp *http.Response, err error) {
-	for i := 0; i < p.nTry; i++ {
+	for i := 0; i < p.c.NTry; i++ {
 		var req *http.Request
 		req, err = http.NewRequest(method, urlStr, body)
 		if err != nil {
@@ -357,7 +353,7 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		}
 
 		p.b.Sign(req)
-		resp, err = p.client.Do(req)
+		resp, err = p.c.Client.Do(req)
 		if err == nil {
 			return
 		}
