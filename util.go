@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
 )
 
 // convenience multipliers
@@ -76,11 +75,6 @@ func (e *respError) Error() string {
 		e.StatusCode,
 		e.Message,
 	)
-}
-
-func bucketFromUrl(subdomain string) string {
-	s := strings.Split(subdomain, ".")
-	return strings.Join(s[:len(s)-1], ".")
 }
 
 func checkClose(c io.Closer, err *error) {
