@@ -16,33 +16,31 @@ import (
 )
 
 const (
-	q_wait_threshold = 2
+	qWaitSz = 2
 )
 
 type getter struct {
-	url    url.URL
-	client *http.Client
-	b      *Bucket
-	bufsz  int64
-	err    error
-	wg     sync.WaitGroup
+	url   url.URL
+	b     *Bucket
+	bufsz int64
+	err   error
+	wg    sync.WaitGroup
 
-	cur_chunk_id   int
-	cur_chunk      *chunk
-	content_length int64
-	chunk_total    int
-	read_ch        chan *chunk
-	get_ch         chan *chunk
-	quit           chan struct{}
+	chunkId    int
+	rChunk     *chunk
+	contentLen int64
+	bytesRead  int64
+	chunkTotal int
+
+	readCh chan *chunk
+	getCh  chan *chunk
+	quit   chan struct{}
+	qWait  map[int]*chunk
 
 	bp *bp
 
-	q_wait map[int]*chunk
-
-	concurrency int
-	nTry        int
-	closed      bool
-	c           *Config
+	closed bool
+	c      *Config
 
 	md5 hash.Hash
 }
@@ -57,18 +55,16 @@ type chunk struct {
 }
 
 func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header, error) {
-	// initialize getter
 	g := new(getter)
 	g.url = p_url
-	g.bufsz = c.PartSize
-	g.get_ch = make(chan *chunk)
-	g.read_ch = make(chan *chunk)
-	g.quit = make(chan struct{})
-	g.nTry = c.NTry
-	g.q_wait = make(map[int]*chunk)
-	g.b = b
 	g.c = c
-	g.client = c.Client
+	g.bufsz = max64(c.PartSize, 1)
+	g.c.NTry = max(c.NTry, 1)
+	g.getCh = make(chan *chunk)
+	g.readCh = make(chan *chunk)
+	g.quit = make(chan struct{})
+	g.qWait = make(map[int]*chunk)
+	g.b = b
 	g.md5 = md5.New()
 
 	// use get instead of head for error messaging
@@ -80,31 +76,29 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	if resp.StatusCode != 200 {
 		return nil, nil, newRespError(resp)
 	}
-	g.content_length = resp.ContentLength
-	g.chunk_total = int((g.content_length + g.bufsz - 1) / g.bufsz) // round up, integer division
-	g.concurrency = min(c.Concurrency, g.chunk_total)
-	logger.debugPrintln("chunk total: ", g.chunk_total)
-	logger.debugPrintln("content length : ", g.content_length)
-	logger.debugPrintln("concurrency: ", g.concurrency)
+	g.contentLen = resp.ContentLength
+	g.chunkTotal = int((g.contentLen + g.bufsz - 1) / g.bufsz) // round up, integer division
+	g.c.Concurrency = min(c.Concurrency, g.chunkTotal)
+	logger.debugPrintf("object size: %3.2g MB", float64(g.contentLen)/float64((1*mb)))
 
 	g.bp = newBufferPool(g.bufsz)
 
-	for i := 0; i < g.concurrency; i++ {
+	for i := 0; i < g.c.Concurrency; i++ {
 		go g.worker()
 	}
-	go g.init_chunks()
+	go g.initChunks()
 	return g, resp.Header, nil
 }
 
 func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *http.Response, err error) {
-	for i := 0; i < g.nTry; i++ {
+	for i := 0; i < g.c.NTry; i++ {
 		var req *http.Request
 		req, err = http.NewRequest(method, urlStr, body)
 		if err != nil {
 			return
 		}
 		g.b.Sign(req)
-		resp, err = g.client.Do(req)
+		resp, err = g.c.Client.Do(req)
 		if err == nil {
 			return
 		}
@@ -118,14 +112,14 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 	return
 }
 
-func (g *getter) init_chunks() {
+func (g *getter) initChunks() {
 	id := 0
-	for i := int64(0); i < g.content_length; {
-		for len(g.q_wait) >= q_wait_threshold {
-			// Limit growth of q_wait
+	for i := int64(0); i < g.contentLen; {
+		for len(g.qWait) >= qWaitSz {
+			// Limit growth of qWait
 			time.Sleep(100 * time.Millisecond)
 		}
-		size := min64(g.bufsz, g.content_length-i)
+		size := min64(g.bufsz, g.contentLen-i)
 		c := &chunk{
 			id: id,
 			header: http.Header{
@@ -139,13 +133,13 @@ func (g *getter) init_chunks() {
 		i += size
 		id++
 		g.wg.Add(1)
-		g.get_ch <- c
+		g.getCh <- c
 	}
-	close(g.get_ch)
+	close(g.getCh)
 }
 
 func (g *getter) worker() {
-	for c := range g.get_ch {
+	for c := range g.getCh {
 		g.retryGetChunk(c)
 	}
 
@@ -155,13 +149,13 @@ func (g *getter) retryGetChunk(c *chunk) {
 	defer g.wg.Done()
 	var err error
 	c.b = <-g.bp.get
-	for i := 0; i < g.nTry; i++ {
+	for i := 0; i < g.c.NTry; i++ {
 		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 		err = g.getChunk(c)
 		if err == nil {
 			return
 		}
-		logger.debugPrintf("Error on attempt %d: retrying chunk: %v, Error: %s", i, c, err)
+		logger.debugPrintf("error on attempt %d: retrying chunk: %v, error: %s", i, c, err)
 	}
 	g.err = err
 	close(g.quit) // out of tries, ensure quit by closing channel
@@ -177,7 +171,7 @@ func (g *getter) getChunk(c *chunk) error {
 	}
 	r.Header = c.header
 	g.b.Sign(r)
-	resp, err := g.client.Do(r)
+	resp, err := g.c.Client.Do(r)
 	if err != nil {
 		return err
 	}
@@ -190,10 +184,10 @@ func (g *getter) getChunk(c *chunk) error {
 		return err
 	}
 	if n != c.size {
-		return fmt.Errorf("Chunk %d: Expected %d bytes, received %d",
+		return fmt.Errorf("chunk %d: Expected %d bytes, received %d",
 			c.id, c.size, n)
 	}
-	g.read_ch <- c
+	g.readCh <- c
 	return nil
 }
 
@@ -205,43 +199,45 @@ func (g *getter) Read(p []byte) (int, error) {
 	if g.err != nil {
 		return 0, g.err
 	}
-	if g.cur_chunk == nil {
-		g.cur_chunk, err = g.find_next_chunk()
+	if g.rChunk == nil {
+		g.rChunk, err = g.nextChunk()
 		if err != nil {
 			return 0, err
 		}
 	}
-	// write to md5 hash in parallel with output
-	tr := io.TeeReader(g.cur_chunk.b, g.md5)
-	n, err := tr.Read(p)
+
+	n, err := g.rChunk.b.Read(p)
+	if g.c.Md5Check {
+		g.md5.Write(p[0:n])
+	}
 
 	// Empty buffer, move on to next
 	if err == io.EOF {
 		// Do not send EOF for each chunk.
-		if g.cur_chunk.id == g.chunk_total-1 && g.cur_chunk.b.Len() == 0 {
-			return n, err // end of stream, send eof
+		if !(g.rChunk.id == g.chunkTotal-1 && g.rChunk.b.Len() == 0) {
+			err = nil
 		}
-		g.bp.give <- g.cur_chunk.b // recycle buffer
-		g.cur_chunk = nil
-		g.cur_chunk_id++
-		return n - 1, nil // subtract EOF
+		g.bp.give <- g.rChunk.b // recycle buffer
+		g.rChunk = nil
+		g.chunkId++
 	}
+	g.bytesRead = g.bytesRead + int64(n)
 	return n, err
 }
 
-func (g *getter) find_next_chunk() (cur_chunk *chunk, err error) {
+func (g *getter) nextChunk() (*chunk, error) {
 	for {
 
-		// first check q_wait
-		cur_chunk = g.q_wait[g.cur_chunk_id]
-		if cur_chunk != nil {
-			delete(g.q_wait, g.cur_chunk_id)
-			return
+		// first check qWait
+		c := g.qWait[g.chunkId]
+		if c != nil {
+			delete(g.qWait, g.chunkId)
+			return c, nil
 		}
-		// if next chunk not in q_wait, read from channel
+		// if next chunk not in qWait, read from channel
 		select {
-		case c := <-g.read_ch:
-			g.q_wait[c.id] = c
+		case c := <-g.readCh:
+			g.qWait[c.id] = c
 		case <-g.quit:
 			return nil, g.err // fatal error, quit.
 		}
@@ -256,10 +252,12 @@ func (g *getter) Close() error {
 		return g.err
 	}
 	g.wg.Wait()
-	close(g.read_ch)
+	close(g.readCh)
 	g.bp.quit <- true
 	g.closed = true
-	logger.debugPrintln("makes:", g.bp.makes)
+	if g.bytesRead != g.contentLen {
+		return fmt.Errorf("read error: %d bytes read. expected: %d", g.bytesRead, g.contentLen)
+	}
 	if g.c.Md5Check {
 		if err := g.checkMd5(); err != nil {
 			return err
