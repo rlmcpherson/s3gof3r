@@ -60,6 +60,7 @@ func newBufferPool(bufsz int64) (np *bp) {
 					e = n
 				}
 			case <-np.quit:
+				logger.debugPrintf("%d buffers of %d MB allocated", np.makes, bufsz/(1*mb))
 				return
 			}
 		}

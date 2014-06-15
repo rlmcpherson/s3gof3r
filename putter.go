@@ -231,7 +231,6 @@ func (p *putter) Close() (err error) {
 		p.abort()
 		return p.err
 	}
-	logger.debugPrintln("buffer allocations:", p.bp.makes)
 	// Complete Multipart upload
 	body, err := xml.Marshal(p.xml)
 	if err != nil {
