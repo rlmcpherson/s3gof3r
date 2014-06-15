@@ -2,7 +2,7 @@ package s3gof3r
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -83,7 +83,7 @@ func EnvKeys() (keys Keys, err error) {
 		SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 	}
 	if keys.AccessKey == "" || keys.SecretKey == "" {
-		err = errors.New("Keys not set in environment: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
+		err = fmt.Errorf("Keys not set in environment: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
 	}
 	return
 }
