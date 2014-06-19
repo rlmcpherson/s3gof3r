@@ -33,9 +33,14 @@ func ClientWithTimeout(timeout time.Duration) *http.Client {
 			if err != nil {
 				return nil, err
 			}
+			if tc, ok := c.(*net.TCPConn); ok {
+				tc.SetKeepAlive(true)
+				tc.SetKeepAlivePeriod(timeout)
+			}
 			return &deadlineConn{timeout, c}, nil
 		},
 		ResponseHeaderTimeout: timeout,
+		MaxIdleConnsPerHost:   20,
 	}
 	return &http.Client{Transport: transport}
 }
