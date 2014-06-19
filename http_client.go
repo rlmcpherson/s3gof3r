@@ -25,6 +25,9 @@ func (c *deadlineConn) Write(b []byte) (n int, err error) {
 	return c.Conn.Write(b)
 }
 
+// ClientWithTimeout is an http client optimized for high throughput
+// to S3, It times out more agressively than the default
+// http client in net/http as well as setting deadlines on the TCP connection
 func ClientWithTimeout(timeout time.Duration) *http.Client {
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
