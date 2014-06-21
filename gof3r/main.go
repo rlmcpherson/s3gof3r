@@ -11,7 +11,7 @@
 //      $ gof3r  get --bucket=<bucket> --key=<path>
 //
 //
-// Set AWS keys as environment Variables (required):
+// Set AWS keys as environment Variables (required unless using ec2 instance-based credentials):
 //
 //  $ export AWS_ACCESS_KEY_ID=<access_key>
 //  $ export AWS_SECRET_ACCESS_KEY=<secret_key>
@@ -21,52 +21,86 @@
 //  $ gof3r get -b my_s3_bucket -k bar_dir/s3_object | tar -x
 //
 //
-// Complete Usage: get command:
-//   gof3r [OPTIONS] get [get-OPTIONS]
+// FULL USAGE
 //
-//   get (download) from S3
+//    get
+//        download from S3
 //
-//   Help Options:
-//   -h, --help          Show this help message
+//        get (download) object from S3
 //
-//   get (download) from S3:
-//   -p, --path=         Path to file. Defaults to standard output for streaming. (/dev/stdout)
-//   -k, --key=          key of s3 object
-//   -b, --bucket=       s3 bucket
-//   --md5Check-off      Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently
-//                       during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
-//   -c, --concurrency=  Concurrency of transfers (20)
-//   -s, --partsize=     initial size of concurrent parts, in bytes (20 MB)
-//   --endpoint=     Amazon S3 endpoint (s3.amazonaws.com)
-//   --debug             Print debug statements and dump stacks.
-//   -v, --versionId=    The version ID of the object. Not compatible with md5 checking.
+//        -p, --path
+//               Path to file. Defaults to standard output for streaming.
 //
-//   Help Options:
-//   -h, --help          Show this help message
+//        -k, --key
+//               S3 object key
+//
+//        -b, --bucket
+//               S3 bucket
+//
+//        --no-ssl
+//               Do not use SSL for endpoint connection.
+//
+//        --no-md5
+//               Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
+//
+//        -c, --concurrency
+//               Concurrency of transfers
+//
+//        -s, --partsize
+//               Initial size of concurrent parts, in bytes
+//
+//        --endpoint
+//               Amazon S3 endpoint
+//
+//        --debug
+//               Enable debug logging.
+//
+//        -v, --versionId
+//               Version ID of the object. Incompatible with md5 check (use --no-md5).
+//
+//        -h, --help
+//               Show this help message
+//
+//    put
+//        upload to S3
+//
+//        put (upload) data to S3 object
+//
+//        -p, --path
+//               Path to file. Defaults to standard input for streaming.
+//
+//        -k, --key
+//               S3 object key
+//
+//        -b, --bucket
+//               S3 bucket
+//
+//        --no-ssl
+//               Do not use SSL for endpoint connection.
+//
+//        --no-md5
+//               Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
+//
+//        -c, --concurrency
+//               Concurrency of transfers
+//
+//        -s, --partsize
+//               Initial size of concurrent parts, in bytes
+//
+//        --endpoint
+//               Amazon S3 endpoint
+//
+//        --debug
+//               Enable debug logging.
+//
+//        -m, --header
+//               HTTP headers
+//
+//        -h, --help
+//               Show this help message
 //
 //
-// Complete Usage: put command:
-//   gof3r [OPTIONS] put [put-OPTIONS]
 //
-//   put (upload)to S3
-//
-//   Help Options:
-//     -h, --help          Show this help message
-//
-//   put (upload) to S3:
-//     -p, --path=         Path to file. Defaults to standard input for streaming. (/dev/stdin)
-//     -m, --header=       HTTP headers
-//     -k, --key=          key of s3 object
-//     -b, --bucket=       s3 bucket
-//         --md5Check-off  Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently
-//                         during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
-//     -c, --concurrency=  Concurrency of transfers (20)
-//     -s, --partsize=     initial size of concurrent parts, in bytes (20 MB)
-//     --endpoint=     Amazon S3 endpoint (s3.amazonaws.com)
-//     --debug         Print debug statements and dump stacks.
-//
-//   Help Options:
-//     -h, --help          Show this help message
 package main
 
 import (
@@ -84,24 +118,25 @@ import (
 
 const (
 	name    = "gof3r"
-	version = "0.3.2"
+	version = "0.3.3"
 )
 
 var AppOpts struct {
-	Version func() `long:"version" short:"v"`
+	Version func() `long:"version" short:"v" description:"Print version"`
+	Man     func() `long:"manpage" short:"m" description:"Create gof3r.man man page in current directory"`
 }
 
 // CommonOpts are Options common to both puts and gets
 type CommonOpts struct {
-	//Url         string      `short:"u" long:"url" description:"Url of S3 object"` //TODO: bring back url support
-	Key          string `long:"key" short:"k" description:"key of s3 object" required:"true"`
-	Bucket       string `long:"bucket" short:"b" description:"s3 bucket" required:"true"`
-	WithoutSSL   bool   `long:"without-ssl" description:"do not use SSL for endpoint connection"`
-	CheckDisable bool   `long:"md5Check-off" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets."`
-	Concurrency  int    `long:"concurrency" short:"c" default:"10" description:"Concurrency of transfers"`
-	PartSize     int64  `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20971520"`
-	EndPoint     string `long:"endpoint" description:"Amazon S3 endpoint" default:"s3.amazonaws.com"`
-	Debug        bool   `long:"debug" description:"Print debug statements and dump stacks."`
+	//Url         string      `short:"u" long:"url" description:"URL of S3 object"` //TODO: bring back url support
+	Key         string `long:"key" short:"k" description:"S3 object key" required:"true"`
+	Bucket      string `long:"bucket" short:"b" description:"S3 bucket" required:"true"`
+	NoSSL       bool   `long:"no-ssl" description:"Do not use SSL for endpoint connection."`
+	NoMd5       bool   `long:"no-md5" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets."`
+	Concurrency int    `long:"concurrency" short:"c" default:"10" description:"Concurrency of transfers"`
+	PartSize    int64  `long:"partsize" short:"s" description:"Initial size of concurrent parts, in bytes" default:"20971520"`
+	EndPoint    string `long:"endpoint" description:"Amazon S3 endpoint" default:"s3.amazonaws.com"`
+	Debug       bool   `long:"debug" description:"Enable debug logging."`
 }
 
 var parser = flags.NewParser(&AppOpts, (flags.HelpFlag | flags.PassDoubleDash))
@@ -115,10 +150,34 @@ func main() {
 		os.Exit(0)
 	}
 
+	AppOpts.Man = func() {
+		f, err := os.Create("gof3r.man")
+		if err != nil {
+			log.Fatal(err)
+		}
+		parser.WriteManPage(f)
+		os.Exit(0)
+	}
+
 	// parser calls the Execute functions on Get and Put, after parsing the command line options.
 	start := time.Now()
 	if _, err := parser.Parse(); err != nil {
-		fmt.Fprintf(os.Stderr, "gof3r error: %s\n", err)
+
+		// handling for flag parse errors
+		if ferr, ok := err.(*flags.Error); ok {
+			if ferr.Type == flags.ErrHelp {
+				parser.WriteHelp(os.Stderr)
+			} else {
+				var cmd string
+				if parser.Active != nil {
+					cmd = parser.Active.Name
+				}
+				fmt.Fprintf(os.Stderr, "gof3r error: %s\n", err)
+				fmt.Fprintf(os.Stderr, "run 'gof3r %s --help' for usage.\n", cmd)
+			}
+		} else { // handle non-parse errors
+			fmt.Fprintf(os.Stderr, "gof3r error: %s\n", err)
+		}
 		os.Exit(1)
 	}
 	log.Println("Duration:", time.Since(start))

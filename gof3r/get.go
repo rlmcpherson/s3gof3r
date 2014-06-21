@@ -13,7 +13,7 @@ import (
 type Get struct {
 	Path string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming."`
 	CommonOpts
-	VersionId string `short:"v" long:"versionId" description:"The version ID of the object. Not compatible with md5 checking."`
+	VersionId string `short:"v" long:"versionId" description:"Version ID of the object. Incompatible with md5 check (use --no-md5)."`
 }
 
 var get Get
@@ -30,11 +30,11 @@ func (get *Get) Execute(args []string) (err error) {
 	if get.Concurrency > 0 {
 		conf.Concurrency = get.Concurrency
 	}
-	if get.WithoutSSL {
+	if get.NoSSL {
 		conf.Scheme = "http"
 	}
 	conf.PartSize = get.PartSize
-	conf.Md5Check = !get.CheckDisable
+	conf.Md5Check = !get.NoMd5
 	get.Key = url.QueryEscape(get.Key)
 
 	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, get.Debug)
@@ -70,7 +70,7 @@ func (get *Get) Execute(args []string) (err error) {
 }
 
 func init() {
-	_, err := parser.AddCommand("get", "get (download) from S3", "get (download) from S3", &get)
+	_, err := parser.AddCommand("get", "download from S3", "get (download) object from S3", &get)
 	if err != nil {
 		log.Fatal(err)
 	}

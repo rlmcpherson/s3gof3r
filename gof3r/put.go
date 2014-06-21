@@ -30,11 +30,11 @@ func (put *Put) Execute(args []string) (err error) {
 	if put.Concurrency > 0 {
 		conf.Concurrency = put.Concurrency
 	}
-	if put.WithoutSSL {
+	if put.NoSSL {
 		conf.Scheme = "http"
 	}
 	conf.PartSize = put.PartSize
-	conf.Md5Check = !put.CheckDisable
+	conf.Md5Check = !put.NoMd5
 	put.Key = url.QueryEscape(put.Key)
 	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, put.Debug)
 
@@ -68,7 +68,7 @@ func (put *Put) Execute(args []string) (err error) {
 }
 
 func init() {
-	_, err := parser.AddCommand("put", "put (upload) to S3", "put (upload)to S3", &put)
+	_, err := parser.AddCommand("put", "upload to S3", "put (upload) data to S3 object", &put)
 	if err != nil {
 		log.Fatal(err)
 	}
