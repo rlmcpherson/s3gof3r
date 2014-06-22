@@ -118,7 +118,7 @@ import (
 
 const (
 	name    = "gof3r"
-	version = "0.3.3"
+	version = "0.3.4"
 )
 
 var AppOpts struct {
