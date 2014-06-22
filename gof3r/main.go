@@ -126,6 +126,28 @@ var AppOpts struct {
 	Man     func() `long:"manpage" short:"m" description:"Create gof3r.man man page in current directory"`
 }
 
+var parser = flags.NewParser(&AppOpts, (flags.HelpFlag | flags.PassDoubleDash))
+
+func init() {
+	// set the number of processors to use to the number of cpus for parallelization of concurrent transfers
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	AppOpts.Version = func() {
+		fmt.Fprintf(os.Stderr, "%s version %s\n", name, version)
+		os.Exit(0)
+	}
+
+	AppOpts.Man = func() {
+		f, err := os.Create(name + ".man")
+		if err != nil {
+			log.Fatal(err)
+		}
+		parser.WriteManPage(f)
+		fmt.Fprintf(os.Stderr, "man page written to %s\n", f.Name())
+		os.Exit(0)
+	}
+}
+
 // CommonOpts are Options common to both puts and gets
 type CommonOpts struct {
 	//Url         string      `short:"u" long:"url" description:"URL of S3 object"` //TODO: bring back url support
@@ -139,26 +161,7 @@ type CommonOpts struct {
 	Debug       bool   `long:"debug" description:"Enable debug logging."`
 }
 
-var parser = flags.NewParser(&AppOpts, (flags.HelpFlag | flags.PassDoubleDash))
-
 func main() {
-	// set the number of processors to use to the number of cpus for parallelization of concurrent transfers
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
-	AppOpts.Version = func() {
-		fmt.Fprintf(os.Stderr, "%s version %s\n", name, version)
-		os.Exit(0)
-	}
-
-	AppOpts.Man = func() {
-		f, err := os.Create("gof3r.man")
-		if err != nil {
-			log.Fatal(err)
-		}
-		parser.WriteManPage(f)
-		os.Exit(0)
-	}
-
 	// parser calls the Execute functions on Get and Put, after parsing the command line options.
 	start := time.Now()
 	if _, err := parser.Parse(); err != nil {
@@ -196,7 +199,7 @@ func getAWSKeys() (keys s3gof3r.Keys, err error) {
 	if err == nil {
 		return
 	}
-	err = errors.New("No AWS Keys found.")
+	err = errors.New("no AWS keys found")
 	return
 }
 
