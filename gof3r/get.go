@@ -13,7 +13,7 @@ import (
 type Get struct {
 	Path string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming."`
 	CommonOpts
-	VersionId string `short:"v" long:"versionId" description:"Version ID of the object. Incompatible with md5 check (use --no-md5)."`
+	VersionID string `short:"v" long:"versionId" description:"Version ID of the object. Incompatible with md5 check (use --no-md5)."`
 }
 
 var get Get
@@ -27,9 +27,7 @@ func (get *Get) Execute(args []string) (err error) {
 	}
 	s3 := s3gof3r.New(get.EndPoint, k)
 	b := s3.Bucket(get.Bucket)
-	if get.Concurrency > 0 {
-		conf.Concurrency = get.Concurrency
-	}
+	conf.Concurrency = get.Concurrency
 	if get.NoSSL {
 		conf.Scheme = "http"
 	}
@@ -39,8 +37,8 @@ func (get *Get) Execute(args []string) (err error) {
 
 	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, get.Debug)
 
-	if get.VersionId != "" {
-		get.Key = fmt.Sprintf("%s?versionId=%s", get.Key, get.VersionId)
+	if get.VersionID != "" {
+		get.Key = fmt.Sprintf("%s?versionId=%s", get.Key, get.VersionID)
 	}
 
 	w, err := os.Create(get.Path)

@@ -60,6 +60,8 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g.c = c
 	g.bufsz = max64(c.PartSize, 1)
 	g.c.NTry = max(c.NTry, 1)
+	g.c.Concurrency = max(c.Concurrency, 1)
+
 	g.getCh = make(chan *chunk)
 	g.readCh = make(chan *chunk)
 	g.quit = make(chan struct{})
@@ -78,7 +80,6 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	}
 	g.contentLen = resp.ContentLength
 	g.chunkTotal = int((g.contentLen + g.bufsz - 1) / g.bufsz) // round up, integer division
-	g.c.Concurrency = min(c.Concurrency, g.chunkTotal)
 	logger.debugPrintf("object size: %3.2g MB", float64(g.contentLen)/float64((1*mb)))
 
 	g.bp = newBufferPool(g.bufsz)

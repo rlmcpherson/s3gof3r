@@ -27,9 +27,7 @@ func (put *Put) Execute(args []string) (err error) {
 	}
 	s3 := s3gof3r.New(put.EndPoint, k)
 	b := s3.Bucket(put.Bucket)
-	if put.Concurrency > 0 {
-		conf.Concurrency = put.Concurrency
-	}
+	conf.Concurrency = put.Concurrency
 	if put.NoSSL {
 		conf.Scheme = "http"
 	}
