@@ -59,15 +59,11 @@ type putter struct {
 	bp *bp
 
 	makes    int
-	UploadId string
+	UploadId string // casing matches s3 xml
 	xml      struct {
 		XMLName string `xml:"CompleteMultipartUpload"`
 		Part    []*part
 	}
-}
-
-type completeXml struct {
-	ETag string
 }
 
 // Sends an S3 multipart upload initiation request.

@@ -27,7 +27,7 @@ type mdCreds struct {
 	Expiration      string
 }
 
-// Requests the AWS keys from the instance-based metadata on EC2
+// InstanceKeys Requests the AWS keys from the instance-based metadata on EC2
 // Assumes only one IAM role.
 func InstanceKeys() (keys Keys, err error) {
 
@@ -77,13 +77,13 @@ func InstanceKeys() (keys Keys, err error) {
 	return
 }
 
-// Reads the AWS keys from the environment
+// EnvKeys Reads the AWS keys from the environment
 func EnvKeys() (keys Keys, err error) {
 	keys = Keys{AccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
 		SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 	}
 	if keys.AccessKey == "" || keys.SecretKey == "" {
-		err = fmt.Errorf("Keys not set in environment: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
+		err = fmt.Errorf("keys not set in environment: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
 	}
 	return
 }

@@ -26,7 +26,7 @@ type getter struct {
 	err   error
 	wg    sync.WaitGroup
 
-	chunkId    int
+	chunkID    int
 	rChunk     *chunk
 	contentLen int64
 	bytesRead  int64
@@ -54,9 +54,9 @@ type chunk struct {
 	len    int64
 }
 
-func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header, error) {
+func newGetter(getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header, error) {
 	g := new(getter)
-	g.url = p_url
+	g.url = getURL
 	g.c = c
 	g.bufsz = max64(c.PartSize, 1)
 	g.c.NTry = max(c.NTry, 1)
@@ -70,7 +70,7 @@ func newGetter(p_url url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header,
 	g.md5 = md5.New()
 
 	// use get instead of head for error messaging
-	resp, err := g.retryRequest("GET", p_url.String(), nil)
+	resp, err := g.retryRequest("GET", g.url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -220,7 +220,7 @@ func (g *getter) Read(p []byte) (int, error) {
 		}
 		g.bp.give <- g.rChunk.b // recycle buffer
 		g.rChunk = nil
-		g.chunkId++
+		g.chunkID++
 	}
 	g.bytesRead = g.bytesRead + int64(n)
 	return n, err
@@ -230,9 +230,9 @@ func (g *getter) nextChunk() (*chunk, error) {
 	for {
 
 		// first check qWait
-		c := g.qWait[g.chunkId]
+		c := g.qWait[g.chunkID]
 		if c != nil {
-			delete(g.qWait, g.chunkId)
+			delete(g.qWait, g.chunkID)
 			return c, nil
 		}
 		// if next chunk not in qWait, read from channel

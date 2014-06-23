@@ -181,7 +181,7 @@ func testBucket() (*tB, error) {
 	}
 	bucket := os.Getenv("TEST_BUCKET")
 	if bucket == "" {
-		return nil, errors.New("TEST_BUCKET must be set in environment.")
+		return nil, errors.New("TEST_BUCKET must be set in environment")
 
 	}
 	s3 := New("", k)

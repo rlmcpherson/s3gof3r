@@ -80,7 +80,7 @@ func (b *Bucket) writeSignature(w io.Writer, r *http.Request) {
 func (b *Bucket) writeCanonicalizedAmzHeaders(w io.Writer, r *http.Request) {
 	var amzHeaders []string
 
-	for h, _ := range r.Header {
+	for h := range r.Header {
 		if strings.HasPrefix(strings.ToLower(h), "x-amz-") {
 			amzHeaders = append(amzHeaders, h)
 		}

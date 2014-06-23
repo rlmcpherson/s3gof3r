@@ -55,7 +55,7 @@ func TestEnvKeysNotSet(t *testing.T) {
 	s := authT{}
 	s.saveEnv()
 	_, err := EnvKeys()
-	expErr := "Keys not set in environment: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY"
+	expErr := "keys not set in environment: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY"
 	if err.Error() != expErr {
 		t.Errorf("Expected error: %v. Actual: %v", expErr, err)
 	}

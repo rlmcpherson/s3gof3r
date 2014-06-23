@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type q_buf struct {
+type qBuf struct {
 	when   time.Time
 	buffer *bytes.Buffer
 }
@@ -32,7 +32,7 @@ func newBufferPool(bufsz int64) (np *bp) {
 		for {
 			if q.Len() == 0 {
 				size := bufsz + 100*kb // allocate overhead to avoid slice growth
-				q.PushFront(q_buf{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(int64(size)))})
+				q.PushFront(qBuf{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(int64(size)))})
 				np.makes++
 			}
 
@@ -42,9 +42,9 @@ func newBufferPool(bufsz int64) (np *bp) {
 			select {
 			case b := <-np.give:
 				timeout.Stop()
-				q.PushFront(q_buf{when: time.Now(), buffer: b})
+				q.PushFront(qBuf{when: time.Now(), buffer: b})
 
-			case np.get <- e.Value.(q_buf).buffer:
+			case np.get <- e.Value.(qBuf).buffer:
 				timeout.Stop()
 				q.Remove(e)
 
@@ -53,7 +53,7 @@ func newBufferPool(bufsz int64) (np *bp) {
 				e := q.Front()
 				for e != nil {
 					n := e.Next()
-					if time.Since(e.Value.(q_buf).when) > time.Minute {
+					if time.Since(e.Value.(qBuf).when) > time.Minute {
 						q.Remove(e)
 						e.Value = nil
 					}
