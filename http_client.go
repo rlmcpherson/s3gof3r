@@ -43,7 +43,7 @@ func ClientWithTimeout(timeout time.Duration) *http.Client {
 			return &deadlineConn{timeout, c}, nil
 		},
 		ResponseHeaderTimeout: timeout,
-		MaxIdleConnsPerHost:   20,
+		MaxIdleConnsPerHost:   10,
 	}
 	return &http.Client{Transport: transport}
 }
