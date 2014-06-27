@@ -183,7 +183,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	log.Println("Duration:", time.Since(start))
+	fmt.Fprintf(os.Stderr, "Duration: %v\n", time.Since(start))
 }
 
 // Gets the AWS Keys from environment variables or the instance-based metadata on EC2
