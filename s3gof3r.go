@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -94,12 +96,21 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 }
 
 // Url returns a parsed url to the given path, using the scheme specified in Config.Scheme
-func (b *Bucket) Url(path string, c *Config) url.URL {
-	bURL, err := url.Parse(fmt.Sprintf("%s://%s.%s/%s", c.Scheme, b.Name, b.S3.Domain, path))
-	if err != nil {
-		panic(err)
+func (b *Bucket) Url(bPath string, c *Config) url.URL {
+	// handling for bucket names containing periods
+	// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html for details
+	if strings.Contains(b.Name, ".") {
+		return url.URL{
+			Scheme: c.Scheme,
+			Host:   b.S3.Domain,
+			Path:   path.Clean(fmt.Sprintf("/%s/%s", b.Name, bPath)),
+		}
 	}
-	return *bURL
+	return url.URL{
+		Scheme: c.Scheme,
+		Host:   fmt.Sprintf("%s.%s", b.Name, b.S3.Domain),
+		Path:   path.Clean(fmt.Sprintf("/%s", bPath)),
+	}
 }
 
 // SetLogger wraps the standard library log package.

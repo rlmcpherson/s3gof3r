@@ -101,8 +101,10 @@ func (b *Bucket) writeCanonicalizedAmzHeaders(w io.Writer, r *http.Request) {
 //    <HTTP-Request-URI, from the protocol name up to the query string> +
 //    [ subresource, if present. For example "?acl", "?location", "?logging", or "?torrent"];
 func (b *Bucket) writeCanonicializedResource(w io.Writer, r *http.Request) {
-	w.Write([]byte("/"))
-	w.Write([]byte(b.Name))
+	if !strings.Contains(b.Name, ".") { // handling for bucket names containing periods
+		w.Write([]byte("/"))
+		w.Write([]byte(b.Name))
+	}
 	w.Write([]byte(r.URL.Path))
 	b.writeSubResource(w, r)
 }
