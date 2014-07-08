@@ -109,7 +109,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"runtime/pprof"
 	"time"
 
 	"github.com/jessevdk/go-flags"
@@ -209,20 +208,4 @@ func debug() {
 	runtime.ReadMemStats(&m)
 	log.Println("MEMORY STATS")
 	log.Printf("%d,%d,%d,%d\n", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased)
-	log.Println("NUM CPU:", runtime.NumCPU())
-
-	//profiling
-	f, err := os.Create("memprofileup.out")
-	defer f.Close()
-	fg, err := os.Create("goprof.out")
-	fb, err := os.Create("blockprof.out")
-	if err != nil {
-		log.Fatal(err)
-	}
-	pprof.WriteHeapProfile(f)
-	pprof.Lookup("goroutine").WriteTo(fg, 0)
-	pprof.Lookup("block").WriteTo(fb, 0)
-	f.Close()
-	fg.Close()
-	fb.Close()
 }
