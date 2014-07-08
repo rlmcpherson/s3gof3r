@@ -99,6 +99,8 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 func (b *Bucket) Url(bPath string, c *Config) url.URL {
 	// handling for bucket names containing periods
 	// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html for details
+	// Note: Urls containing some special characters will fail due to net/http bug.
+	// See https://code.google.com/p/go/issues/detail?id=5684
 	if strings.Contains(b.Name, ".") {
 		return url.URL{
 			Scheme: c.Scheme,
