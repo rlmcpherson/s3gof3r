@@ -15,8 +15,9 @@ const (
 )
 
 var tb = os.Getenv("TEST_BUCKET")
-var defaultCp = &Cp{EndPoint: "s3.amazonaws.com",
-	PartSize: mb}
+var defaultCp = &Cp{
+	CommonOpts: CommonOpts{EndPoint: "s3.amazonaws.com",
+		PartSize: mb}}
 
 type cpTest struct {
 	*Cp
@@ -40,20 +41,22 @@ var cpTests = []cpTest{
 	{defaultCp,
 		[]string{"s3://" + tb + "/noexist", "/dev/null"},
 		errors.New("404")},
-	{&Cp{EndPoint: "s3-external-1.amazonaws.com",
-		PartSize: mb},
+	{&Cp{
+		CommonOpts: CommonOpts{EndPoint: "s3-external-1.amazonaws.com",
+			PartSize: mb}},
 		[]string{"s3://" + tb + "/&exist", "/dev/null"},
 		errors.New("404")},
-	{&Cp{NoSSL: true,
-		PartSize: mb},
+	{&Cp{
+		CommonOpts: CommonOpts{NoSSL: true,
+			PartSize: mb}},
 		[]string{"s3://" + tb + "/t1", "s3://" + tb + "/tdir/.tst"},
 		nil},
-	{&Cp{EndPoint: "s3.amazonaws.com",
-		PartSize: mb},
+	{&Cp{
+		CommonOpts: CommonOpts{EndPoint: "s3.amazonaws.com",
+			PartSize: mb}},
 		[]string{"s3://" + tb + "/t1"},
 		errors.New("source and destination arguments required")},
-	{&Cp{EndPoint: "s3.amazonaws.com",
-		PartSize: mb},
+	{defaultCp,
 		[]string{"s://" + tb + "/t1", "s3://" + tb + "/tdir/.tst"},
 		errors.New("parse error: s://")},
 	{defaultCp,

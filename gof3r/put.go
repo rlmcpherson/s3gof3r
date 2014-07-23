@@ -10,9 +10,11 @@ import (
 )
 
 type Put struct {
-	Path string `short:"p" long:"path" description:"Path to file. Defaults to standard input for streaming."`
+	Key    string `long:"key" short:"k" description:"S3 object key" required:"true"`
+	Bucket string `long:"bucket" short:"b" description:"S3 bucket" required:"true"`
+	Path   string `short:"p" long:"path" description:"Path to file. Defaults to standard input for streaming."`
 	CommonOpts
-	Header http.Header `long:"header" short:"m" description:"HTTP headers"`
+	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc."`
 }
 
 var put Put
@@ -56,9 +58,6 @@ func (put *Put) Execute(args []string) (err error) {
 	}
 	if err = w.Close(); err != nil {
 		return
-	}
-	if put.Debug {
-		debug()
 	}
 	return
 }

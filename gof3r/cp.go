@@ -12,16 +12,8 @@ import (
 )
 
 type Cp struct {
-	NoSSL       bool        `long:"no-ssl" description:"do not use SSL for endpoint connection."`
-	NoMd5       bool        `long:"no-md5" description:"Do not use md5 hash checking to ensure data integrity."`
-	Concurrency int         `long:"concurrency" short:"c" default:"10" description:"concurrency of transfers"`
-	PartSize    int64       `long:"partsize" short:"s" description:"initial size of concurrent parts, in bytes" default:"20971520"`
-	EndPoint    string      `long:"endpoint" description:"Amazon S3 endpoint" default:"s3.amazonaws.com"`
-	Debug       bool        `long:"debug" description:"enable debug logging."`
-	Header      http.Header `long:"header" short:"m" description:"HTTP headers"`
-	//Src         flags.Arg   `long:"source" description:"s3 object or file to be copied" positional-args:"true" required:"true"`
-	//Src string    `long:"source" positional-args:"true" required:"true"`
-	//Dst flags.Arg `long:"destination" description:"s3 object file to copy to"`
+	CommonOpts
+	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc."`
 }
 
 var cp Cp
