@@ -145,6 +145,6 @@ s3gof3r package: [http://godoc.org/github.com/rlmcpherson/s3gof3r](http://godoc.
 
 command-line interface: [http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r](http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r)
 
-## Mailing List ## 
+## Mailing List ##
 
 https://groups.google.com/forum/#!forum/s3gof3r
