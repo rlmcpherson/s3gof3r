@@ -37,13 +37,13 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/rlmcpherson/go-flags"
+	"github.com/jessevdk/go-flags"
 	"github.com/rlmcpherson/s3gof3r"
 )
 
 const (
 	name    = "gof3r"
-	version = "0.4.0"
+	version = "0.4.1"
 )
 
 var AppOpts struct {
