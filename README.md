@@ -144,3 +144,7 @@ Gof3r also supports IAM role-based keys from EC2 instance metadata. If available
 s3gof3r package: [http://godoc.org/github.com/rlmcpherson/s3gof3r](http://godoc.org/github.com/rlmcpherson/s3gof3r)
 
 command-line interface: [http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r](http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r)
+
+## Mailing List ## 
+
+https://groups.google.com/forum/#!forum/s3gof3r
