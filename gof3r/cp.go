@@ -27,7 +27,7 @@ type Cp struct {
 var cp Cp
 
 func (cp *Cp) Usage() string {
-	return "gof3r cp <source> <dest> [cp-OPTIONS]"
+	return "<source> <dest> [cp-OPTIONS]"
 }
 
 func (cp *Cp) Execute(args []string) (err error) {

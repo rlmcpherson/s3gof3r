@@ -1,14 +1,14 @@
-// Command gof3r is a command-line interface for s3gof3r: fast, concurrent, streaming access to Amazon S3.
+// gof3r is a command-line interface for s3gof3r: fast, concurrent, streaming access to Amazon S3.
 //
-// Usage:
+// Example Usage:
 //   To stream up to S3:
 //      $  <input_stream> | gof3r put -b <bucket> -k <s3_path>
 //   To stream down from S3:
 //      $ gof3r get -b <bucket> -k <s3_path> | <output_stream>
 //   To upload a file to S3:
-//      $ gof3r  put --path=<local_path> --bucket=<bucket> --key=<s3_path> -m<http_header1> -m<http_header2>...
+//      $ gof3r cp <local_path> s3://<bucket>/<s3_path> -m<http_header1> -m<http_header2>...
 //   To download a file from S3:
-//      $ gof3r  get --bucket=<bucket> --key=<path>
+//      $ gof3r cp s3://<bucket>/<s3_path> <local_path>
 //
 //
 // Set AWS keys as environment Variables (required unless using ec2 instance-based credentials):
@@ -21,85 +21,11 @@
 //  $ gof3r get -b my_s3_bucket -k bar_dir/s3_object | tar -x
 //
 //
-// FULL USAGE
+// MAN PAGE
 //
-//    get
-//        download from S3
+// http://randallmcpherson.com/s3gof3r/gof3r/gof3r.html
 //
-//        get (download) object from S3
-//
-//        -p, --path
-//               Path to file. Defaults to standard output for streaming.
-//
-//        -k, --key
-//               S3 object key
-//
-//        -b, --bucket
-//               S3 bucket
-//
-//        --no-ssl
-//               Do not use SSL for endpoint connection.
-//
-//        --no-md5
-//               Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
-//
-//        -c, --concurrency
-//               Concurrency of transfers
-//
-//        -s, --partsize
-//               Initial size of concurrent parts, in bytes
-//
-//        --endpoint
-//               Amazon S3 endpoint
-//
-//        --debug
-//               Enable debug logging.
-//
-//        -v, --versionId
-//               Version ID of the object. Incompatible with md5 check (use --no-md5).
-//
-//        -h, --help
-//               Show this help message
-//
-//    put
-//        upload to S3
-//
-//        put (upload) data to S3 object
-//
-//        -p, --path
-//               Path to file. Defaults to standard input for streaming.
-//
-//        -k, --key
-//               S3 object key
-//
-//        -b, --bucket
-//               S3 bucket
-//
-//        --no-ssl
-//               Do not use SSL for endpoint connection.
-//
-//        --no-md5
-//               Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
-//
-//        -c, --concurrency
-//               Concurrency of transfers
-//
-//        -s, --partsize
-//               Initial size of concurrent parts, in bytes
-//
-//        --endpoint
-//               Amazon S3 endpoint
-//
-//        --debug
-//               Enable debug logging.
-//
-//        -m, --header
-//               HTTP headers
-//
-//        -h, --help
-//               Show this help message
-//
-//
+// A man page may also be generated with `gof3r -m`
 //
 package main
 
@@ -111,7 +37,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/jessevdk/go-flags"
+	"github.com/rlmcpherson/go-flags"
 	"github.com/rlmcpherson/s3gof3r"
 )
 
@@ -130,6 +56,9 @@ var parser = flags.NewParser(&AppOpts, (flags.HelpFlag | flags.PassDoubleDash))
 func init() {
 	// set the number of processors to use to the number of cpus for parallelization of concurrent transfers
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	// set parser fields
+	parser.ShortDescription = "streaming, concurrent s3 client"
 
 	AppOpts.Version = func() {
 		fmt.Fprintf(os.Stderr, "%s version %s\n", name, version)
