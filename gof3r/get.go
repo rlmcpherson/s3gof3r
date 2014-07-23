@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/url"
 	"os"
 
 	"github.com/rlmcpherson/s3gof3r"
@@ -33,7 +32,6 @@ func (get *Get) Execute(args []string) (err error) {
 	}
 	conf.PartSize = get.PartSize
 	conf.Md5Check = !get.NoMd5
-	get.Key = url.QueryEscape(get.Key)
 
 	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, get.Debug)
 
