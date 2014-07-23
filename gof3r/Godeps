@@ -4,8 +4,8 @@
 	"Deps": [
 		{
 			"ImportPath": "github.com/jessevdk/go-flags",
-			"Comment": "v1-193-gd9d88f0",
-			"Rev": "d9d88f0ec542ae8f8dc041b2ec831b71e7c55558"
+			"Comment": "v1-200-g7047cf7",
+			"Rev": "7047cf7a8dc6f41e53365420ab62d415055232c6"
 		}
 	]
 }
