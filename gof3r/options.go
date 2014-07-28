@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/user"
 
 	"github.com/jessevdk/go-flags"
 )
@@ -21,6 +22,7 @@ type CommonOpts struct {
 var AppOpts struct {
 	Version func() `long:"version" short:"v" description:"Print version"`
 	Man     func() `long:"manpage" short:"m" description:"Create gof3r.man man page in current directory"`
+	Ini     func() `long:"inifile" short:"i" description:"Write .gof3r.ini in current user's home directory"`
 }
 
 var parser = flags.NewParser(&AppOpts, (flags.HelpFlag | flags.PassDoubleDash))
@@ -42,6 +44,19 @@ func init() {
 		}
 		parser.WriteManPage(f)
 		fmt.Fprintf(os.Stderr, "man page written to %s\n", f.Name())
+		os.Exit(0)
+	}
+
+	AppOpts.Ini = func() {
+
+		usr, _ := user.Current()
+
+		ini := usr.HomeDir + "/.gof3r.ini"
+		ip := flags.NewIniParser(parser)
+		if err := ip.WriteFile(ini, (flags.IniIncludeComments | flags.IniIncludeDefaults | flags.IniCommentDefaults)); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Fprintf(os.Stderr, "ini file written to %s\n", ini)
 		os.Exit(0)
 	}
 }
