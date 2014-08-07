@@ -9,17 +9,17 @@ import (
 	"github.com/rlmcpherson/s3gof3r"
 )
 
-type Get struct {
-	Key    string `long:"key" short:"k" description:"S3 object key" required:"true"`
-	Bucket string `long:"bucket" short:"b" description:"S3 bucket" required:"true"`
-	Path   string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming."`
+type getOpts struct {
+	Key    string `long:"key" short:"k" description:"S3 object key" required:"true" no-ini:"true"`
+	Bucket string `long:"bucket" short:"b" description:"S3 bucket" required:"true" no-ini:"true"`
+	Path   string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming." no-ini:"true"`
 	CommonOpts
-	VersionID string `short:"v" long:"versionId" description:"Version ID of the object. Incompatible with md5 check (use --no-md5)."`
+	VersionID string `short:"v" long:"versionId" description:"Version ID of the object. Incompatible with md5 check (use --no-md5)." no-ini:"true"`
 }
 
-var get Get
+var get getOpts
 
-func (get *Get) Execute(args []string) (err error) {
+func (get *getOpts) Execute(args []string) (err error) {
 	conf := new(s3gof3r.Config)
 	*conf = *s3gof3r.DefaultConfig
 	k, err := getAWSKeys()
