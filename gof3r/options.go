@@ -51,37 +51,36 @@ func init() {
 	}
 }
 
-func iniPath() (path string, err error) {
+func iniPath() (path string, exist bool, err error) {
 	usr, err := user.Current()
 	if err != nil {
-		return "", err
+		return
 	}
-	return fmt.Sprintf("%s/%s", usr.HomeDir, iniFile), nil
+	path = fmt.Sprintf("%s/%s", usr.HomeDir, iniFile)
+	if _, staterr := os.Stat(path); !os.IsNotExist(staterr) {
+		exist = true
+	}
+	return
 }
 
-func parseIni() error {
-	p, err := iniPath()
-	if err != nil {
-		return err
+func parseIni() (err error) {
+	p, exist, err := iniPath()
+	if err != nil || !exist {
+		return
 	}
-	ip := flags.NewIniParser(parser)
-	if _, err := os.Stat(p); os.IsNotExist(err) {
-		return nil // no ini file, not error
-	}
-	return ip.ParseFile(p)
+	return flags.NewIniParser(parser).ParseFile(p)
 }
 
 func writeIni() {
-	p, err := iniPath()
+	p, exist, err := iniPath()
 	if err != nil {
 		log.Fatal(err)
 	}
-	ip := flags.NewIniParser(parser)
-	if _, err := os.Stat(p); !os.IsNotExist(err) {
+	if exist {
 		fmt.Fprintf(os.Stderr, "%s exists, refusing to overwrite.\n", p)
 	} else {
-
-		if err := ip.WriteFile(p, (flags.IniIncludeComments | flags.IniIncludeDefaults | flags.IniCommentDefaults)); err != nil {
+		if err := flags.NewIniParser(parser).WriteFile(p,
+			(flags.IniIncludeComments | flags.IniIncludeDefaults | flags.IniCommentDefaults)); err != nil {
 			log.Fatal(err)
 		}
 		fmt.Fprintf(os.Stderr, "ini file written to %s\n", p)
