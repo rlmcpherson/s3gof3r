@@ -9,17 +9,17 @@ import (
 	"github.com/rlmcpherson/s3gof3r"
 )
 
-type Put struct {
-	Key    string `long:"key" short:"k" description:"S3 object key" required:"true"`
-	Bucket string `long:"bucket" short:"b" description:"S3 bucket" required:"true"`
-	Path   string `short:"p" long:"path" description:"Path to file. Defaults to standard input for streaming."`
+type putOpts struct {
+	Key    string `long:"key" short:"k" description:"S3 object key" required:"true" no-ini:"true"`
+	Bucket string `long:"bucket" short:"b" description:"S3 bucket" required:"true" no-ini:"true"`
+	Path   string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming." no-ini:"true"`
 	CommonOpts
-	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc."`
+	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc." ini-name:"header"`
 }
 
-var put Put
+var put putOpts
 
-func (put *Put) Execute(args []string) (err error) {
+func (put *putOpts) Execute(args []string) (err error) {
 	conf := new(s3gof3r.Config)
 	*conf = *s3gof3r.DefaultConfig
 	k, err := getAWSKeys()

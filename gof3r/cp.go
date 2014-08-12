@@ -11,18 +11,18 @@ import (
 	"github.com/rlmcpherson/s3gof3r"
 )
 
-type Cp struct {
+type cpOpts struct {
 	CommonOpts
-	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc."`
+	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc." ini-name:"header"`
 }
 
-var cp Cp
+var cp cpOpts
 
-func (cp *Cp) Usage() string {
+func (cp *cpOpts) Usage() string {
 	return "<source> <dest> [cp-OPTIONS]"
 }
 
-func (cp *Cp) Execute(args []string) (err error) {
+func (cp *cpOpts) Execute(args []string) (err error) {
 
 	k, err := getAWSKeys()
 	if err != nil {
@@ -59,10 +59,9 @@ func (cp *Cp) Execute(args []string) (err error) {
 	src, err := func(src *url.URL) (io.ReadCloser, error) {
 		if src.Host == "" {
 			return os.Open(src.Path)
-		} else {
-			r, _, err := s3.Bucket(src.Host).GetReader(src.Path, conf)
-			return r, err
 		}
+		r, _, err := s3.Bucket(src.Host).GetReader(src.Path, conf)
+		return r, err
 	}(urls[0])
 	if err != nil {
 		return
@@ -71,9 +70,8 @@ func (cp *Cp) Execute(args []string) (err error) {
 	dst, err := func(dst *url.URL) (io.WriteCloser, error) {
 		if dst.Host == "" {
 			return os.Create(dst.Path)
-		} else {
-			return s3.Bucket(dst.Host).PutWriter(dst.Path, cp.Header, conf)
 		}
+		return s3.Bucket(dst.Host).PutWriter(dst.Path, cp.Header, conf)
 	}(urls[1])
 	if err != nil {
 		return

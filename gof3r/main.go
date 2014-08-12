@@ -36,13 +36,13 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/jessevdk/go-flags"
+	"github.com/rlmcpherson/go-flags"
 	"github.com/rlmcpherson/s3gof3r"
 )
 
 const (
 	name    = "gof3r"
-	version = "0.4.1"
+	version = "0.4.2"
 )
 
 func main() {
@@ -51,8 +51,17 @@ func main() {
 
 	start := time.Now()
 
+	// parse ini file
+	if err := parseIni(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
 	// parser calls the Execute function for the command after parsing the command line options.
 	if _, err := parser.Parse(); err != nil {
+
+		if appOpts.WriteIni {
+			writeIni() // exits
+		}
 
 		// handling for flag parse errors
 		if ferr, ok := err.(*flags.Error); ok {
