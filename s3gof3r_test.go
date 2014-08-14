@@ -26,7 +26,11 @@ type getTest struct {
 var getTests = []getTest{
 	{"t1.test", &randSrc{Size: int(1 * kb)}, nil, 1024, nil},
 	{"NoKey", nil, nil, 0, &respError{StatusCode: 404, Message: "The specified key does not exist."}},
-	{"30mb_test", &randSrc{Size: int(30 * mb)}, nil, 30 * mb, nil},
+	{"10_mb_test",
+		&randSrc{Size: int(10 * mb)},
+		&Config{Concurrency: 3, PartSize: 3 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(5 * time.Second)},
+		10 * mb,
+		nil},
 }
 
 func TestGetReader(t *testing.T) {
@@ -86,6 +90,7 @@ var putTests = []putTest{
 		&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: false, Scheme: "http", Client: http.DefaultClient}, 3, nil},
 	{"noconc", []byte("foo"), nil,
 		&Config{Concurrency: 0, PartSize: 5 * mb, NTry: 1, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(5 * time.Second)}, 3, nil},
+	{"enc test", []byte("test_data"), nil, nil, 9, nil},
 }
 
 func TestPutWriter(t *testing.T) {
@@ -125,9 +130,9 @@ type putMultiTest struct {
 
 var putMultiTests = []putMultiTest{
 	{"5mb_test.test", &randSrc{Size: int(5 * mb)}, goodHeader(), nil, 5 * mb, nil},
-	{"20mb_test.test", &randSrc{Size: int(20 * mb)}, goodHeader(),
-		&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https",
-			Client: ClientWithTimeout(5 * time.Second)}, 20 * mb, nil},
+	{"11mb_test.test", &randSrc{Size: int(11 * mb)}, goodHeader(),
+		&Config{Concurrency: 3, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https",
+			Client: ClientWithTimeout(5 * time.Second)}, 11 * mb, nil},
 	{"timeout.test", &randSrc{Size: int(5 * mb)}, goodHeader(),
 		&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: false, Scheme: "https",
 			Client: ClientWithTimeout(1 * time.Millisecond)}, 5 * mb,
@@ -136,9 +141,9 @@ var putMultiTests = []putMultiTest{
 		&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: true, Scheme: "https",
 			Client: ClientWithTimeout(100 * time.Millisecond)}, 10 * mb,
 		errors.New("timeout")},
-	{"smallpart", &randSrc{Size: int(10 * mb)}, goodHeader(),
-		&Config{Concurrency: 4, PartSize: 4 * mb, NTry: 3, Md5Check: false, Scheme: "https",
-			Client: ClientWithTimeout(5 * time.Second)}, 10 * mb, nil},
+	{"smallpart", &randSrc{Size: int(6 * mb)}, goodHeader(),
+		&Config{Concurrency: 4, PartSize: 2 * mb, NTry: 3, Md5Check: false, Scheme: "https",
+			Client: ClientWithTimeout(5 * time.Second)}, 6 * mb, nil},
 }
 
 func TestPutMulti(t *testing.T) {
