@@ -12,10 +12,11 @@ type qBuf struct {
 }
 
 type bp struct {
-	makes int
-	get   chan *bytes.Buffer
-	give  chan *bytes.Buffer
-	quit  chan bool
+	makes   int
+	get     chan *bytes.Buffer
+	give    chan *bytes.Buffer
+	quit    chan bool
+	timeout time.Duration
 }
 
 func makeBuffer(size int64) []byte {
@@ -23,10 +24,12 @@ func makeBuffer(size int64) []byte {
 }
 
 func newBufferPool(bufsz int64) (np *bp) {
-	np = new(bp)
-	np.get = make(chan *bytes.Buffer)
-	np.give = make(chan *bytes.Buffer)
-	np.quit = make(chan bool)
+	np = &bp{
+		get:     make(chan *bytes.Buffer),
+		give:    make(chan *bytes.Buffer),
+		quit:    make(chan bool),
+		timeout: time.Minute,
+	}
 	go func() {
 		q := new(list.List)
 		for {
@@ -38,7 +41,7 @@ func newBufferPool(bufsz int64) (np *bp) {
 
 			e := q.Front()
 
-			timeout := time.NewTimer(time.Minute)
+			timeout := time.NewTimer(np.timeout)
 			select {
 			case b := <-np.give:
 				timeout.Stop()
@@ -53,7 +56,7 @@ func newBufferPool(bufsz int64) (np *bp) {
 				e := q.Front()
 				for e != nil {
 					n := e.Next()
-					if time.Since(e.Value.(qBuf).when) > time.Minute {
+					if time.Since(e.Value.(qBuf).when) > np.timeout {
 						q.Remove(e)
 						e.Value = nil
 					}
