@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -105,7 +106,8 @@ func (b *Bucket) writeCanonicializedResource(w io.Writer, r *http.Request) {
 		w.Write([]byte("/"))
 		w.Write([]byte(b.Name))
 	}
-	w.Write([]byte(r.URL.Path))
+	u := &url.URL{Path: r.URL.Path}
+	w.Write([]byte(u.String()))
 	b.writeSubResource(w, r)
 }
 
