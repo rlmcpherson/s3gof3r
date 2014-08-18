@@ -52,7 +52,7 @@ func max64(a, b int64) int64 {
 
 // Error type and functions for http response
 // http://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html
-type respError struct {
+type RespError struct {
 	Code       string
 	Message    string
 	Resource   string
@@ -60,8 +60,8 @@ type respError struct {
 	StatusCode int
 }
 
-func newRespError(r *http.Response) *respError {
-	e := new(respError)
+func newRespError(r *http.Response) *RespError {
+	e := new(RespError)
 	e.StatusCode = r.StatusCode
 	b, _ := ioutil.ReadAll(r.Body)
 	xml.NewDecoder(bytes.NewReader(b)).Decode(e) // parse error from response
@@ -69,7 +69,7 @@ func newRespError(r *http.Response) *respError {
 	return e
 }
 
-func (e *respError) Error() string {
+func (e *RespError) Error() string {
 	return fmt.Sprintf(
 		"%d: %q",
 		e.StatusCode,

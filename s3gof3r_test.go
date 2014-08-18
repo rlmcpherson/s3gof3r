@@ -25,7 +25,7 @@ type getTest struct {
 
 var getTests = []getTest{
 	{"t1.test", &randSrc{Size: int(1 * kb)}, nil, 1024, nil},
-	{"NoKey", nil, nil, 0, &respError{StatusCode: 404, Message: "The specified key does not exist."}},
+	{"NoKey", nil, nil, 0, &RespError{StatusCode: 404, Message: "The specified key does not exist."}},
 	{"10_mb_test",
 		&randSrc{Size: int(10 * mb)},
 		&Config{Concurrency: 3, PartSize: 3 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(5 * time.Second)},
@@ -81,11 +81,11 @@ type putTest struct {
 var putTests = []putTest{
 	{"testfile", []byte("test_data"), nil, nil, 9, nil},
 	{"", []byte("test_data"), nil, nil,
-		9, &respError{StatusCode: 400, Message: "A key must be specified"}},
+		9, &RespError{StatusCode: 400, Message: "A key must be specified"}},
 	{"testempty", []byte(""), nil, nil, 0, errors.New("0 bytes written")},
 	{"testhg", []byte("foo"), goodHeader(), nil, 3, nil},
 	{"testhb", []byte("foo"), badHeader(), nil, 3,
-		&respError{StatusCode: 400, Message: "The Encryption request you specified is not valid. Supported value: AES256."}},
+		&RespError{StatusCode: 400, Message: "The Encryption request you specified is not valid. Supported value: AES256."}},
 	{"nomd5", []byte("foo"), goodHeader(),
 		&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: false, Scheme: "http", Client: http.DefaultClient}, 3, nil},
 	{"noconc", []byte("foo"), nil,
