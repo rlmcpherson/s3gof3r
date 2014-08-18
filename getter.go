@@ -254,7 +254,7 @@ func (g *getter) Close() error {
 	}
 	g.wg.Wait()
 	close(g.readCh)
-	g.bp.quit <- true
+	close(g.bp.quit)
 	g.closed = true
 	if g.bytesRead != g.contentLen {
 		return fmt.Errorf("read error: %d bytes read. expected: %d", g.bytesRead, g.contentLen)

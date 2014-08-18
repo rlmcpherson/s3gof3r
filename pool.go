@@ -15,7 +15,7 @@ type bp struct {
 	makes   int
 	get     chan *bytes.Buffer
 	give    chan *bytes.Buffer
-	quit    chan bool
+	quit    chan struct{}
 	timeout time.Duration
 }
 
@@ -27,7 +27,7 @@ func newBufferPool(bufsz int64) (np *bp) {
 	np = &bp{
 		get:     make(chan *bytes.Buffer),
 		give:    make(chan *bytes.Buffer),
-		quit:    make(chan bool),
+		quit:    make(chan struct{}),
 		timeout: time.Minute,
 	}
 	go func() {
