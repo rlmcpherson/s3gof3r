@@ -36,7 +36,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/rlmcpherson/go-flags"
+	"github.com/jessevdk/go-flags"
 	"github.com/rlmcpherson/s3gof3r"
 )
 

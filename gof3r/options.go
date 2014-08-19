@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/rlmcpherson/go-flags"
+	"github.com/jessevdk/go-flags"
 )
 
 const (
