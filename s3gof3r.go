@@ -36,7 +36,8 @@ type Config struct {
 	NTry         int   // maximum attempts for each part
 	Md5Check     bool  // The md5 hash of the object is stored in <bucket>/.md5/<object_key>.md5
 	// When true, it is stored on puts and verified on gets
-	Scheme string // url scheme, defaults to 'https'
+	Scheme    string // url scheme, defaults to 'https'
+	PathStyle bool   // use path style bucket addressing instead of virtual host style
 }
 
 // DefaultConfig contains defaults used if *Config is nil
@@ -121,7 +122,7 @@ func (b *Bucket) url(bPath string) (*url.URL, error) {
 	u.Scheme = b.conf().Scheme
 	// handling for bucket names containing periods
 	// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html for details
-	if strings.Contains(b.Name, ".") {
+	if strings.Contains(b.Name, ".") || b.conf().PathStyle {
 		u.Host = b.S3.Domain
 		u.Path = path.Clean(fmt.Sprintf("/%s/%s", b.Name, u.Path))
 	} else {
