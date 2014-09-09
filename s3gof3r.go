@@ -80,7 +80,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 	if c == nil {
 		c = DefaultConfig
 	}
-	return newGetter(b.Url(path, c), c, b)
+	return newGetter(*b.url(path, c), c, b)
 }
 
 // PutWriter provides a writer to upload data as multipart upload requests.
@@ -92,23 +92,23 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 	if c == nil {
 		c = DefaultConfig
 	}
-	return newPutter(b.Url(path, c), h, c, b)
+	return newPutter(*b.url(path, c), h, c, b)
 }
 
 // Url returns a parsed url to the given path, using the scheme specified in Config.Scheme
-func (b *Bucket) Url(bPath string, c *Config) url.URL {
+func (b *Bucket) url(bPath string, c *Config) *url.URL {
 	// handling for bucket names containing periods
 	// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html for details
 	// Note: Urls containing some special characters will fail due to net/http bug.
 	// See https://code.google.com/p/go/issues/detail?id=5684
 	if strings.Contains(b.Name, ".") {
-		return url.URL{
+		return &url.URL{
 			Scheme: c.Scheme,
 			Host:   b.S3.Domain,
 			Path:   path.Clean(fmt.Sprintf("/%s/%s", b.Name, bPath)),
 		}
 	}
-	return url.URL{
+	return &url.URL{
 		Scheme: c.Scheme,
 		Host:   fmt.Sprintf("%s.%s", b.Name, b.S3.Domain),
 		Path:   path.Clean(fmt.Sprintf("/%s", bPath)),
