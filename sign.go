@@ -37,6 +37,9 @@ var paramsToSign = map[string]bool{
 }
 
 func (b *Bucket) Sign(req *http.Request) {
+	if req.Header == nil {
+		req.Header = http.Header{}
+	}
 	if dateHeader := req.Header.Get("Date"); dateHeader == "" {
 		req.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 	}
