@@ -17,18 +17,17 @@ import (
 
 type getTest struct {
 	path   string
-	data   io.Reader
 	config *Config
 	rSize  int64
 	err    error
 }
 
 var getTests = []getTest{
-	{"t1.test", &randSrc{Size: int(1 * kb)}, nil, 1024, nil},
-	{"NoKey", nil, nil, 0, &RespError{StatusCode: 404, Message: "The specified key does not exist."}},
+	{"t1.test", nil, 1 * kb, nil},
+	//{"t1.test?versionId=latest", &randSrc{Size: int(1 * kb)}, nil, 1024, nil},
+	{"NoKey", nil, 0, &RespError{StatusCode: 404, Message: "The specified key does not exist."}},
 	{"10_mb_test",
-		&randSrc{Size: int(10 * mb)},
-		&Config{Concurrency: 3, PartSize: 3 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(5 * time.Second)},
+		&Config{Concurrency: 3, PartSize: 3 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(2 * time.Second)},
 		10 * mb,
 		nil},
 }
@@ -40,8 +39,8 @@ func TestGetReader(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tt := range getTests {
-		if tt.data != nil {
-			err = b.putReader(tt.path, &tt.data)
+		if tt.rSize > 0 {
+			err = b.putReader(tt.path, &randSrc{Size: int(tt.rSize)})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -128,25 +127,24 @@ type putMultiTest struct {
 	err    error
 }
 
-var putMultiTests = []putMultiTest{
-	{"5mb_test.test", &randSrc{Size: int(5 * mb)}, goodHeader(), nil, 5 * mb, nil},
-	{"11mb_test.test", &randSrc{Size: int(11 * mb)}, goodHeader(),
-		&Config{Concurrency: 3, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https",
-			Client: ClientWithTimeout(5 * time.Second)}, 11 * mb, nil},
-	{"timeout.test", &randSrc{Size: int(5 * mb)}, goodHeader(),
-		&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: false, Scheme: "https",
-			Client: ClientWithTimeout(1 * time.Millisecond)}, 5 * mb,
-		errors.New("timeout")},
-	{"timeout.test", &randSrc{Size: int(10 * mb)}, goodHeader(),
-		&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: true, Scheme: "https",
-			Client: ClientWithTimeout(100 * time.Millisecond)}, 10 * mb,
-		errors.New("timeout")},
-	{"smallpart", &randSrc{Size: int(6 * mb)}, goodHeader(),
-		&Config{Concurrency: 4, PartSize: 2 * mb, NTry: 3, Md5Check: false, Scheme: "https",
-			Client: ClientWithTimeout(5 * time.Second)}, 6 * mb, nil},
-}
-
 func TestPutMulti(t *testing.T) {
+	var putMultiTests = []putMultiTest{
+		{"5mb_test.test", &randSrc{Size: int(5 * mb)}, goodHeader(), nil, 5 * mb, nil},
+		{"11mb_test.test", &randSrc{Size: int(11 * mb)}, goodHeader(),
+			&Config{Concurrency: 3, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https",
+				Client: ClientWithTimeout(5 * time.Second)}, 11 * mb, nil},
+		{"timeout.test", &randSrc{Size: int(5 * mb)}, goodHeader(),
+			&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: false, Scheme: "https",
+				Client: ClientWithTimeout(1 * time.Millisecond)}, 5 * mb,
+			errors.New("timeout")},
+		{"timeout.test", &randSrc{Size: int(10 * mb)}, goodHeader(),
+			&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: true, Scheme: "https",
+				Client: ClientWithTimeout(100 * time.Millisecond)}, 10 * mb,
+			errors.New("timeout")},
+		{"smallpart", &randSrc{Size: int(6 * mb)}, goodHeader(),
+			&Config{Concurrency: 4, PartSize: 2 * mb, NTry: 3, Md5Check: false, Scheme: "https",
+				Client: ClientWithTimeout(5 * time.Second)}, 6 * mb, nil},
+	}
 	t.Parallel()
 	b, err := testBucket()
 	if err != nil {
@@ -195,7 +193,7 @@ func testBucket() (*tB, error) {
 	return &b, err
 }
 
-func (b *tB) putReader(path string, r *io.Reader) error {
+func (b *tB) putReader(path string, r io.Reader) error {
 
 	if r == nil {
 		return nil // special handling for nil case
@@ -205,7 +203,7 @@ func (b *tB) putReader(path string, r *io.Reader) error {
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(w, *r)
+	_, err = io.Copy(w, r)
 	if err != nil {
 		return err
 	}
@@ -224,11 +222,11 @@ func errComp(expect, actual error, t *testing.T, tt interface{}) bool {
 	}
 
 	if expect == nil || actual == nil {
-		t.Errorf("PutWriter called with %v\n Expected: %v\n Actual:   %v\n", tt, expect, actual)
+		t.Errorf("called with %v\n Expected: %v\n Actual:   %v\n", tt, expect, actual)
 		return false
 	}
 	if !strings.Contains(actual.Error(), expect.Error()) {
-		t.Errorf("PutWriter called with %v\n Expected: %v\n Actual:   %v\n", tt, expect, actual)
+		t.Errorf("called with %v\n Expected: %v\n Actual:   %v\n", tt, expect, actual)
 		return false
 	}
 	return true
@@ -318,4 +316,83 @@ func ExampleBucket_GetReader() error {
 	}
 	fmt.Println(h) // print key header data
 	return nil
+}
+
+func TestDelete(t *testing.T) {
+
+	var deleteTests = []struct {
+		path  string
+		exist bool
+		err   error
+	}{
+		{"delete1", true, nil},
+		{"delete 2", false, nil},
+		{"/delete 2", false, nil},
+	}
+	b, err := testBucket()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range deleteTests {
+		if tt.exist {
+			err = b.putReader(tt.path, &randSrc{Size: int(1 * kb)})
+
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		err := b.Delete(tt.path)
+		t.Log(err)
+		errComp(tt.err, err, t, tt)
+	}
+
+}
+
+func TestGetVersion(t *testing.T) {
+
+	var versionTests = []struct {
+		path string
+		err  error
+	}{
+		{"key1", nil},
+	}
+	b, err := testBucket()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range versionTests {
+		err = b.putReader(tt.path, &randSrc{Size: int(1 * kb)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		// get version id
+		r, h, err := b.GetReader(tt.path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Close()
+		v := h.Get("x-amz-version-id")
+		if v == "" {
+			t.Logf("versioning not enabled on %s\n", b.Name)
+			t.SkipNow()
+		}
+		// upload again for > 1 version
+		err = b.putReader(tt.path, &randSrc{Size: int(1 * kb)})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// request first uploaded version
+		t.Logf("version id: %s", v)
+		p := fmt.Sprintf("%s?versionId=%s", tt.path, v)
+		r, _, err = b.GetReader(p, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Close()
+		errComp(tt.err, err, t, tt)
+	}
+
 }

@@ -315,7 +315,10 @@ func (p *putter) putMd5() (err error) {
 	calcMd5 := fmt.Sprintf("%x", p.md5.Sum(nil))
 	md5Reader := strings.NewReader(calcMd5)
 	md5Path := fmt.Sprint(".md5", p.url.Path, ".md5")
-	md5Url := p.b.url(md5Path, p.c)
+	md5Url, err := p.b.url(md5Path)
+	if err != nil {
+		return err
+	}
 	logger.debugPrintln("md5: ", calcMd5)
 	logger.debugPrintln("md5Path: ", md5Path)
 	r, err := http.NewRequest("PUT", md5Url.String(), md5Reader)

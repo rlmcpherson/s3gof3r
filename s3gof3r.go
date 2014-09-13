@@ -25,6 +25,7 @@ type S3 struct {
 type Bucket struct {
 	*S3
 	Name string
+	*Config
 }
 
 // Config includes configuration parameters for s3gof3r
@@ -66,8 +67,13 @@ func New(domain string, keys Keys) *S3 {
 }
 
 // Bucket returns a bucket on s3
+// Bucket Config is initialized to DefaultConfig
 func (s3 *S3) Bucket(name string) *Bucket {
-	return &Bucket{s3, name}
+	return &Bucket{
+		S3:     s3,
+		Name:   name,
+		Config: DefaultConfig,
+	}
 }
 
 // GetReader provides a reader and downloads data using parallel ranged get requests.
@@ -78,9 +84,13 @@ func (s3 *S3) Bucket(name string) *Bucket {
 // DefaultConfig is used if c is nil
 func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
 	if c == nil {
-		c = DefaultConfig
+		c = b.conf()
 	}
-	return newGetter(*b.url(path, c), c, b)
+	u, err := b.url(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	return newGetter(*u, c, b)
 }
 
 // PutWriter provides a writer to upload data as multipart upload requests.
@@ -90,29 +100,65 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 // DefaultConfig is used if c is nil.
 func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteCloser, err error) {
 	if c == nil {
-		c = DefaultConfig
+		c = b.conf()
 	}
-	return newPutter(*b.url(path, c), h, c, b)
+	u, err := b.url(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return newPutter(*u, h, c, b)
 }
 
 // Url returns a parsed url to the given path, using the scheme specified in Config.Scheme
-func (b *Bucket) url(bPath string, c *Config) *url.URL {
+// Note: Urls containing some special characters will fail due to net/http bug.
+// See https://code.google.com/p/go/issues/detail?id=5684
+func (b *Bucket) url(bPath string) (*url.URL, error) {
+	u, err := url.Parse(bPath)
+	if err != nil {
+		return nil, err
+	}
+	u.Scheme = b.conf().Scheme
 	// handling for bucket names containing periods
 	// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html for details
-	// Note: Urls containing some special characters will fail due to net/http bug.
-	// See https://code.google.com/p/go/issues/detail?id=5684
 	if strings.Contains(b.Name, ".") {
-		return &url.URL{
-			Scheme: c.Scheme,
-			Host:   b.S3.Domain,
-			Path:   path.Clean(fmt.Sprintf("/%s/%s", b.Name, bPath)),
-		}
+		u.Host = b.S3.Domain
+		u.Path = path.Clean(fmt.Sprintf("/%s/%s", b.Name, u.Path))
+	} else {
+		u.Host = fmt.Sprintf("%s.%s", b.Name, b.S3.Domain)
+		u.Path = path.Clean(fmt.Sprintf("/%s", u.Path))
 	}
-	return &url.URL{
-		Scheme: c.Scheme,
-		Host:   fmt.Sprintf("%s.%s", b.Name, b.S3.Domain),
-		Path:   path.Clean(fmt.Sprintf("/%s", bPath)),
+	return u, nil
+}
+
+func (b *Bucket) conf() *Config {
+	c := b.Config
+	if c == nil {
+		c = DefaultConfig
 	}
+	return c
+}
+
+func (b *Bucket) Delete(path string) error {
+	u, err := b.url(path)
+	if err != nil {
+		return err
+	}
+	r := http.Request{
+		Method: "DELETE",
+		URL:    u,
+	}
+	b.Sign(&r)
+	resp, err := b.conf().Do(&r)
+	if err != nil {
+		return err
+	}
+	defer checkClose(resp.Body, &err)
+	if resp.StatusCode != 204 {
+		return newRespError(resp)
+	}
+
+	return nil
 }
 
 // SetLogger wraps the standard library log package.
