@@ -253,9 +253,8 @@ func (g *getter) Close() error {
 		return g.err
 	}
 	g.wg.Wait()
-	close(g.readCh)
-	close(g.bp.quit)
 	g.closed = true
+	close(g.bp.quit)
 	if g.bytesRead != g.contentLen {
 		return fmt.Errorf("read error: %d bytes read. expected: %d", g.bytesRead, g.contentLen)
 	}
@@ -274,6 +273,7 @@ func (g *getter) checkMd5() (err error) {
 	if err != nil {
 		return err
 	}
+
 	logger.debugPrintln("md5: ", calcMd5)
 	logger.debugPrintln("md5Path: ", md5Path)
 	resp, err := g.retryRequest("GET", md5Url.String(), nil)
