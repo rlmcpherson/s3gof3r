@@ -12,6 +12,7 @@ import (
 )
 
 type cpOpts struct {
+	DataOpts
 	CommonOpts
 	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc." ini-name:"header"`
 }

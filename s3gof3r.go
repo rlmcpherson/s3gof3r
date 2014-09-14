@@ -157,6 +157,7 @@ func (b *Bucket) Delete(path string) error {
 	if resp.StatusCode != 204 {
 		return newRespError(resp)
 	}
+	logger.Printf("%s deleted\n", u.String())
 
 	return nil
 }

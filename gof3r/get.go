@@ -13,6 +13,7 @@ type getOpts struct {
 	Key    string `long:"key" short:"k" description:"S3 object key" required:"true" no-ini:"true"`
 	Bucket string `long:"bucket" short:"b" description:"S3 bucket" required:"true" no-ini:"true"`
 	Path   string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming." no-ini:"true"`
+	DataOpts
 	CommonOpts
 	VersionID string `short:"v" long:"versionId" description:"Version ID of the object. Incompatible with md5 check (use --no-md5)." no-ini:"true"`
 }

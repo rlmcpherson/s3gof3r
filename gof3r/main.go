@@ -42,7 +42,7 @@ import (
 
 const (
 	name    = "gof3r"
-	version = "0.4.3"
+	version = "0.4.4"
 )
 
 func main() {
@@ -80,7 +80,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "Duration: %v\n", time.Since(start))
+	fmt.Fprintf(os.Stderr, "duration: %v\n", time.Since(start))
 }
 
 // getAWSKeys gets the AWS Keys from environment variables or the instance-based metadata on EC2

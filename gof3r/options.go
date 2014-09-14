@@ -15,12 +15,16 @@ const (
 
 // CommonOpts are Options common to all commands
 type CommonOpts struct {
-	NoSSL       bool   `long:"no-ssl" description:"Do not use SSL for endpoint connection." ini-name:"no-ssl"`
-	NoMd5       bool   `long:"no-md5" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets." ini-name:"no-md5"`
-	Concurrency int    `long:"concurrency" short:"c" default:"10" description:"Concurrency of transfers" ini-name:"concurrency"`
-	PartSize    int64  `long:"partsize" short:"s" description:"Initial size of concurrent parts, in bytes" default:"20971520" ini-name:"partsize"`
-	EndPoint    string `long:"endpoint" description:"Amazon S3 endpoint" default:"s3.amazonaws.com" ini-name:"endpoint"`
-	Debug       bool   `long:"debug" description:"Enable debug logging." ini-name:"debug"`
+	EndPoint string `long:"endpoint" description:"Amazon S3 endpoint" default:"s3.amazonaws.com" ini-name:"endpoint"`
+	Debug    bool   `long:"debug" description:"Enable debug logging." ini-name:"debug"`
+}
+
+// CommonOpts are Options common to cp, get, and put commands
+type DataOpts struct {
+	NoSSL       bool  `long:"no-ssl" description:"Do not use SSL for endpoint connection." ini-name:"no-ssl"`
+	NoMd5       bool  `long:"no-md5" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets." ini-name:"no-md5"`
+	Concurrency int   `long:"concurrency" short:"c" default:"3" description:"Concurrency of transfers" ini-name:"concurrency"`
+	PartSize    int64 `long:"partsize" short:"s" description:"Initial size of concurrent parts, in bytes" default:"41943040" ini-name:"partsize"`
 }
 
 var appOpts struct {
