@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/user"
+	"os/exec"
+	"strings"
 
 	"github.com/jessevdk/go-flags"
 )
@@ -23,8 +24,8 @@ type CommonOpts struct {
 type DataOpts struct {
 	NoSSL       bool  `long:"no-ssl" description:"Do not use SSL for endpoint connection." ini-name:"no-ssl"`
 	NoMd5       bool  `long:"no-md5" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets." ini-name:"no-md5"`
-	Concurrency int   `long:"concurrency" short:"c" default:"3" description:"Concurrency of transfers" ini-name:"concurrency"`
-	PartSize    int64 `long:"partsize" short:"s" description:"Initial size of concurrent parts, in bytes" default:"41943040" ini-name:"partsize"`
+	Concurrency int   `long:"concurrency" short:"c" default:"10" description:"Concurrency of transfers" ini-name:"concurrency"`
+	PartSize    int64 `long:"partsize" short:"s" description:"Initial size of concurrent parts, in bytes" default:"20971520" ini-name:"partsize"`
 }
 
 var appOpts struct {
@@ -56,11 +57,11 @@ func init() {
 }
 
 func iniPath() (path string, exist bool, err error) {
-	usr, err := user.Current()
+	hdir, err := homeDir()
 	if err != nil {
 		return
 	}
-	path = fmt.Sprintf("%s/%s", usr.HomeDir, iniFile)
+	path = fmt.Sprintf("%s/%s", hdir, iniFile)
 	if _, staterr := os.Stat(path); !os.IsNotExist(staterr) {
 		exist = true
 	}
@@ -90,4 +91,16 @@ func writeIni() {
 		fmt.Fprintf(os.Stderr, "ini file written to %s\n", p)
 	}
 	os.Exit(0)
+}
+
+// find unix home directory
+func homeDir() (string, error) {
+	if h := os.Getenv("HOME"); h != "" {
+		return h, nil
+	}
+	h, err := exec.Command("sh", "-c", "eval echo ~$USER").Output()
+	if err == nil && len(h) > 0 {
+		return strings.TrimSpace(string(h)), nil
+	}
+	return "", fmt.Errorf("home directory not found for current user")
 }

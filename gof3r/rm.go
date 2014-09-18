@@ -49,7 +49,7 @@ func (rm *rmOpts) Execute(args []string) error {
 }
 
 func init() {
-	cmd, err := parser.AddCommand("rm", "delete S3 objects", "delete S3 objects", &rm)
+	cmd, err := parser.AddCommand("rm", "delete from S3", "", &rm)
 	if err != nil {
 		log.Fatal(err)
 	}
