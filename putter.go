@@ -145,7 +145,7 @@ func (p *putter) flush() {
 	// double buffer size every 1000 parts to
 	// avoid exceeding the 10000-part AWS limit
 	// while still reaching the 5 Terabyte max object size
-	if p.part%1000 == 0 {
+	if p.part%1000 == 0 && growPartSize(p.part, p.bufsz) {
 		p.bufsz = min64(p.bufsz*2, maxPartSize)
 		p.bp.makeSize = p.bufsz
 		logger.debugPrintf("part size doubled to %d", p.bufsz)
@@ -367,4 +367,10 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		}
 	}
 	return
+}
+
+// returns true unless partSize is large enough
+// to achieve maxObjSize
+func growPartSize(partIndex int, partSize int64) bool {
+	return maxObjSize/(maxNPart-int64(partIndex)) > partSize
 }
