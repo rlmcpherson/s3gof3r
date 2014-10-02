@@ -11,6 +11,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -146,6 +147,10 @@ func (p *putter) flush() {
 	// while still reaching the 5 Terabyte max object size
 	if p.part%1000 == 0 {
 		p.bufsz = min64(p.bufsz*2, maxPartSize)
+		p.bp.makeSize = p.bufsz
+		logger.debugPrintf("doubling buffer size to %d", p.bufsz)
+		debug.FreeOSMemory()
+		logger.debugPrintln("os memory freed")
 	}
 
 }

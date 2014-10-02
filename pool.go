@@ -12,11 +12,12 @@ type qBuf struct {
 }
 
 type bp struct {
-	makes   int
-	get     chan *bytes.Buffer
-	give    chan *bytes.Buffer
-	quit    chan struct{}
-	timeout time.Duration
+	makes    int
+	get      chan *bytes.Buffer
+	give     chan *bytes.Buffer
+	quit     chan struct{}
+	timeout  time.Duration
+	makeSize int64
 }
 
 func makeBuffer(size int64) []byte {
@@ -25,18 +26,20 @@ func makeBuffer(size int64) []byte {
 
 func newBufferPool(bufsz int64) (np *bp) {
 	np = &bp{
-		get:     make(chan *bytes.Buffer),
-		give:    make(chan *bytes.Buffer),
-		quit:    make(chan struct{}),
-		timeout: time.Minute,
+		get:      make(chan *bytes.Buffer),
+		give:     make(chan *bytes.Buffer),
+		quit:     make(chan struct{}),
+		timeout:  time.Minute,
+		makeSize: bufsz,
 	}
 	go func() {
 		q := new(list.List)
 		for {
 			if q.Len() == 0 {
-				size := bufsz + 100*kb // allocate overhead to avoid slice growth
-				q.PushFront(qBuf{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(int64(size)))})
+				size := np.makeSize + 100*kb // allocate overhead to avoid slice growth
+				q.PushFront(qBuf{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(size))})
 				np.makes++
+				logger.debugPrintf("buffer %d of %d MB allocated", np.makes, np.makeSize/(1*mb))
 			}
 
 			e := q.Front()
@@ -57,13 +60,14 @@ func newBufferPool(bufsz int64) (np *bp) {
 				for e != nil {
 					n := e.Next()
 					if time.Since(e.Value.(qBuf).when) > np.timeout {
+						logger.debugPrintln("removing buffer from queue")
 						q.Remove(e)
 						e.Value = nil
 					}
 					e = n
 				}
 			case <-np.quit:
-				logger.debugPrintf("%d buffers of %d MB allocated", np.makes, bufsz/(1*mb))
+				logger.debugPrintf("%d buffers of %d MB allocated", np.makes, np.makeSize/(1*mb))
 				return
 			}
 		}
