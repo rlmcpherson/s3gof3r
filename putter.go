@@ -11,7 +11,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -114,7 +113,8 @@ func (p *putter) Write(b []byte) (int, error) {
 	}
 	if p.buf == nil {
 		p.buf = <-p.bp.get
-		p.buf.Reset()
+		// grow to bufsz, allocating overhead to avoid slice growth
+		p.buf.Grow(int(p.bufsz + 100*kb))
 	}
 	n, err := p.buf.Write(b)
 	if err != nil {
@@ -148,9 +148,8 @@ func (p *putter) flush() {
 	if p.part%1000 == 0 {
 		p.bufsz = min64(p.bufsz*2, maxPartSize)
 		p.bp.makeSize = p.bufsz
-		logger.debugPrintf("doubling buffer size to %d", p.bufsz)
-		debug.FreeOSMemory()
-		logger.debugPrintln("os memory freed")
+		logger.debugPrintf("part size doubled to %d", p.bufsz)
+
 	}
 
 }

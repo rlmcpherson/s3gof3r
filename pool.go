@@ -48,6 +48,7 @@ func newBufferPool(bufsz int64) (np *bp) {
 			select {
 			case b := <-np.give:
 				timeout.Stop()
+				b.Reset()
 				q.PushFront(qBuf{when: time.Now(), buffer: b})
 
 			case np.get <- e.Value.(qBuf).buffer:
@@ -60,7 +61,6 @@ func newBufferPool(bufsz int64) (np *bp) {
 				for e != nil {
 					n := e.Next()
 					if time.Since(e.Value.(qBuf).when) > np.timeout {
-						logger.debugPrintln("removing buffer from queue")
 						q.Remove(e)
 						e.Value = nil
 					}
