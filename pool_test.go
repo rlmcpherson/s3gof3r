@@ -14,11 +14,11 @@ func TestBP(t *testing.T) {
 	lf := *bytes.NewBuffer(nil)
 	SetLogger(&lf, "", log.LstdFlags, true)
 
-	bp := newBufferPool(mb)
+	bp := bufferPool(mb)
 	bp.timeout = 1 * time.Millisecond
 	b := <-bp.get
-	if cap(b.Bytes()) != int(mb+100*kb) {
-		t.Errorf("Expected buffer capacity: %d. Actual: %d", kb, b.Len())
+	if cap(b) != int(mb) {
+		t.Errorf("Expected buffer capacity: %d. Actual: %d", kb, cap(b))
 	}
 	bp.give <- b
 	if bp.makes != 2 {

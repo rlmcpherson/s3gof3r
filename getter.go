@@ -36,7 +36,7 @@ type getter struct {
 	quit   chan struct{}
 	qWait  map[int]*chunk
 
-	sp *sp
+	sp *bp
 
 	closed bool
 	c      *Config
@@ -81,12 +81,11 @@ func newGetter(getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header
 	g.chunkTotal = int((g.contentLen + g.bufsz - 1) / g.bufsz) // round up, integer division
 	logger.debugPrintf("object size: %3.2g MB", float64(g.contentLen)/float64((1*mb)))
 
-	g.sp = newSlicePool(g.bufsz)
+	g.sp = bufferPool(g.bufsz)
 
 	for i := 0; i < g.c.Concurrency; i++ {
 		go g.worker()
 	}
-	logger.debugPrintf("started %d workers", g.c.Concurrency)
 	go g.initChunks()
 	return g, resp.Header, nil
 }
@@ -134,7 +133,6 @@ func (g *getter) initChunks() {
 		i += size
 		id++
 		g.wg.Add(1)
-		logger.debugPrintf("initialized chunk %d to get range %v", c.id, c.header)
 		g.getCh <- c
 	}
 	close(g.getCh)
@@ -184,7 +182,6 @@ func (g *getter) getChunk(c *chunk) error {
 	if err != nil {
 		return err
 	}
-	logger.debugPrintf("downloaded chunk %d", c.id)
 	if int64(n) != c.size {
 		return fmt.Errorf("chunk %d: Expected %d bytes, received %d",
 			c.id, c.size, n)
@@ -203,8 +200,7 @@ func (g *getter) Read(p []byte) (int, error) {
 	}
 	nw := 0
 	for nw < len(p) {
-		if g.rChunk == nil { // get next chunk
-			logger.debugPrintf("getting chunk %d", g.chunkID)
+		if g.rChunk == nil {
 			g.rChunk, err = g.nextChunk()
 			if err != nil {
 				return 0, err
@@ -218,11 +214,10 @@ func (g *getter) Read(p []byte) (int, error) {
 		g.bytesRead += int64(n)
 
 		if g.bytesRead == g.contentLen {
-			logger.debugPrintf("complete: %d bytes read", g.bytesRead)
-			return n, io.EOF
+			return nw, io.EOF
 		}
-		if g.cIdx >= g.rChunk.size-1 {
-			g.sp.give <- g.rChunk.b // recycle buffer
+		if g.cIdx >= g.rChunk.size-1 { // chunk complete
+			g.sp.give <- g.rChunk.b
 			g.chunkID++
 			g.rChunk = nil
 		}

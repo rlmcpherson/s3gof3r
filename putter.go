@@ -58,7 +58,7 @@ type putter struct {
 	md5        hash.Hash
 	ETag       string
 
-	sp *sp
+	sp *bp
 
 	makes    int
 	UploadId string // casing matches s3 xml
@@ -100,7 +100,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	p.md5OfParts = md5.New()
 	p.md5 = md5.New()
 
-	p.sp = newSlicePool(p.bufsz)
+	p.sp = bufferPool(p.bufsz)
 
 	return p, nil
 }
@@ -151,7 +151,7 @@ func (p *putter) flush() {
 	p.buf = nil
 	// if necessary, double buffer size every 2000 parts due to the 10000-part AWS limit
 	// to reach the 5 Terabyte max object size, initial part size must be ~85 MB
-	if p.part%100 == 0 && growPartSize(p.part, p.bufsz, p.putsz) {
+	if p.part%2000 == 0 && growPartSize(p.part, p.bufsz, p.putsz) {
 		p.bufsz = min64(p.bufsz*2, maxPartSize)
 		p.sp.sizech <- p.bufsz // update pool buffer size
 		logger.debugPrintf("part size doubled to %d", p.bufsz)
