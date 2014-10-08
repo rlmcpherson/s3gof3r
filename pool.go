@@ -1,77 +1,70 @@
 package s3gof3r
 
 import (
-	"bytes"
 	"container/list"
 	"time"
 )
 
-type qBuf struct {
-	when   time.Time
-	buffer *bytes.Buffer
+type qb struct {
+	when time.Time
+	s    []byte
 }
 
 type bp struct {
-	makes    int
-	get      chan *bytes.Buffer
-	give     chan *bytes.Buffer
-	quit     chan struct{}
-	timeout  time.Duration
-	makeSize int64
+	makes   int
+	get     chan []byte
+	give    chan []byte
+	quit    chan struct{}
+	timeout time.Duration
+	bufsz   int64
+	sizech  chan int64
 }
 
-func makeBuffer(size int64) []byte {
-	return make([]byte, 0, size)
-}
-
-func newBufferPool(bufsz int64) (np *bp) {
-	np = &bp{
-		get:      make(chan *bytes.Buffer),
-		give:     make(chan *bytes.Buffer),
-		quit:     make(chan struct{}),
-		timeout:  time.Minute,
-		makeSize: bufsz,
+func bufferPool(bufsz int64) (sp *bp) {
+	sp = &bp{
+		get:     make(chan []byte),
+		give:    make(chan []byte),
+		quit:    make(chan struct{}),
+		timeout: time.Minute,
+		sizech:  make(chan int64),
 	}
 	go func() {
 		q := new(list.List)
 		for {
 			if q.Len() == 0 {
-				size := np.makeSize + 100*kb // allocate overhead to avoid slice growth
-				q.PushFront(qBuf{when: time.Now(), buffer: bytes.NewBuffer(makeBuffer(size))})
-				np.makes++
-				logger.debugPrintf("buffer %d of %d MB allocated", np.makes, np.makeSize/(1*mb))
+				q.PushFront(qb{when: time.Now(), s: make([]byte, bufsz)})
+				sp.makes++
 			}
 
 			e := q.Front()
 
-			timeout := time.NewTimer(np.timeout)
+			timeout := time.NewTimer(sp.timeout)
 			select {
-			case b := <-np.give:
+			case b := <-sp.give:
 				timeout.Stop()
-				b.Reset()
-				q.PushFront(qBuf{when: time.Now(), buffer: b})
-
-			case np.get <- e.Value.(qBuf).buffer:
+				q.PushFront(qb{when: time.Now(), s: b})
+			case sp.get <- e.Value.(qb).s:
 				timeout.Stop()
 				q.Remove(e)
-
 			case <-timeout.C:
-				// free unused buffers
+				// free unused slices older than timeout
 				e := q.Front()
 				for e != nil {
 					n := e.Next()
-					if time.Since(e.Value.(qBuf).when) > np.timeout {
+					if time.Since(e.Value.(qb).when) > sp.timeout {
 						q.Remove(e)
 						e.Value = nil
 					}
 					e = n
 				}
-			case <-np.quit:
-				logger.debugPrintf("%d buffers of %d MB allocated", np.makes, np.makeSize/(1*mb))
+			case sz := <-sp.sizech: // update buffer size, free buffers
+				bufsz = sz
+			case <-sp.quit:
+				logger.debugPrintf("%d buffers of %d MB allocated", sp.makes, bufsz/(1*mb))
 				return
 			}
 		}
 
 	}()
-	return np
+	return sp
 }
