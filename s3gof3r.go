@@ -87,7 +87,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 	if c == nil {
 		c = b.conf()
 	}
-	u, err := b.url(path)
+	u, err := b.url(path, c)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,7 +103,7 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 	if c == nil {
 		c = b.conf()
 	}
-	u, err := b.url(path)
+	u, err := b.url(path, c)
 	if err != nil {
 		return nil, err
 	}
@@ -111,18 +111,18 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 	return newPutter(*u, h, c, b)
 }
 
-// Url returns a parsed url to the given path, using the scheme specified in Config.Scheme
+// url returns a parsed url to the given path. c must not be nil
 // Note: Urls containing some special characters will fail due to net/http bug.
 // See https://code.google.com/p/go/issues/detail?id=5684
-func (b *Bucket) url(bPath string) (*url.URL, error) {
+func (b *Bucket) url(bPath string, c *Config) (*url.URL, error) {
 	u, err := url.Parse(bPath)
 	if err != nil {
 		return nil, err
 	}
-	u.Scheme = b.conf().Scheme
+	u.Scheme = c.Scheme
 	// handling for bucket names containing periods
 	// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html for details
-	if strings.Contains(b.Name, ".") || b.conf().PathStyle {
+	if strings.Contains(b.Name, ".") || c.PathStyle {
 		u.Host = b.S3.Domain
 		u.Path = path.Clean(fmt.Sprintf("/%s/%s", b.Name, u.Path))
 	} else {
@@ -140,8 +140,9 @@ func (b *Bucket) conf() *Config {
 	return c
 }
 
+// Delete deletes the key at path
 func (b *Bucket) Delete(path string) error {
-	u, err := b.url(path)
+	u, err := b.url(path, b.conf())
 	if err != nil {
 		return err
 	}

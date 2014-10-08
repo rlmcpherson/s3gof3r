@@ -274,7 +274,7 @@ func (g *getter) Close() error {
 func (g *getter) checkMd5() (err error) {
 	calcMd5 := fmt.Sprintf("%x", g.md5.Sum(nil))
 	md5Path := fmt.Sprint(".md5", g.url.Path, ".md5")
-	md5Url, err := g.b.url(md5Path)
+	md5Url, err := g.b.url(md5Path, g.c)
 	if err != nil {
 		return err
 	}
