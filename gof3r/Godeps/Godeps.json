@@ -1,0 +1,11 @@
+{
+	"ImportPath": "github.com/rlmcpherson/s3gof3r/gof3r",
+	"GoVersion": "devel +7af2b6fa04ee Thu Oct 02 10:25:56 2014 +0200",
+	"Deps": [
+		{
+			"ImportPath": "github.com/jessevdk/go-flags",
+			"Comment": "v1-257-gef51ed2",
+			"Rev": "ef51ed2000ee1721c7153e958511907b844b4a9c"
+		}
+	]
+}
