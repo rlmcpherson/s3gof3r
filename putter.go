@@ -219,20 +219,15 @@ func (p *putter) Close() (err error) {
 		p.abort()
 		return syscall.EINVAL
 	}
-	if p.buf != nil {
-		if p.bufIdx > 0 {
-			p.flush()
-		}
+	if p.bufIdx > 0 || // partial part
+		p.part == 0 { // 0 length file
+		p.flush()
 	}
 	p.wg.Wait()
 	close(p.ch)
 	p.closed = true
 	close(p.sp.quit)
 
-	if p.part == 0 {
-		p.abort()
-		return fmt.Errorf("0 bytes written")
-	}
 	if p.err != nil {
 		p.abort()
 		return p.err

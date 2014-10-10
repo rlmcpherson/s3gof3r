@@ -200,6 +200,9 @@ func (g *getter) Read(p []byte) (int, error) {
 	}
 	nw := 0
 	for nw < len(p) {
+		if g.bytesRead == g.contentLen {
+			return nw, io.EOF
+		}
 		if g.rChunk == nil {
 			g.rChunk, err = g.nextChunk()
 			if err != nil {
@@ -213,9 +216,6 @@ func (g *getter) Read(p []byte) (int, error) {
 		nw += n
 		g.bytesRead += int64(n)
 
-		if g.bytesRead == g.contentLen {
-			return nw, io.EOF
-		}
 		if g.cIdx >= g.rChunk.size-1 { // chunk complete
 			g.sp.give <- g.rChunk.b
 			g.chunkID++

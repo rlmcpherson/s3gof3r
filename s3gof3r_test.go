@@ -37,15 +37,18 @@ func TestGetReader(t *testing.T) {
 		err    error
 	}{
 		{"t1.test", nil, 1 * kb, nil},
-		{"NoKey", nil, 0, &RespError{StatusCode: 404, Message: "The specified key does not exist."}},
-		{"10_mb_test",
+		{"no-md5", &Config{Scheme: "https", Client: ClientWithTimeout(clientTimeout), Md5Check: false}, 1, nil},
+		{"NoKey", nil, -1, &RespError{StatusCode: 404, Message: "The specified key does not exist."}},
+		{"6_mb_test",
 			&Config{Concurrency: 3, PartSize: 1 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(3 * time.Second)},
 			6 * mb,
 			nil},
+		{"b1", nil, 1, nil},
+		{"0byte", &Config{Scheme: "https", Client: ClientWithTimeout(clientTimeout), Md5Check: false}, 0, nil},
 	}
 
 	for _, tt := range getTests {
-		if tt.rSize > 0 {
+		if tt.rSize >= 0 {
 			err := b.putReader(tt.path, &randSrc{Size: int(tt.rSize)})
 			if err != nil {
 				t.Fatal(err)
@@ -87,7 +90,7 @@ func TestPutWriter(t *testing.T) {
 		{"testfile", []byte("test_data"), nil, nil, 9, nil},
 		{"", []byte("test_data"), nil, nil,
 			9, &RespError{StatusCode: 400, Message: "A key must be specified"}},
-		{"testempty", []byte(""), nil, nil, 0, errors.New("0 bytes written")},
+		{"test0byte", []byte(""), nil, nil, 0, nil},
 		{"testhg", []byte("foo"), goodHeader(), nil, 3, nil},
 		{"testhb", []byte("foo"), badHeader(), nil, 3,
 			&RespError{StatusCode: 400, Message: "The Encryption request you specified is not valid. Supported value: AES256."}},
