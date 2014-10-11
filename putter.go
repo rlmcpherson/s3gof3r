@@ -219,6 +219,10 @@ func (p *putter) Close() (err error) {
 		p.abort()
 		return syscall.EINVAL
 	}
+	if p.err != nil {
+		p.abort()
+		return p.err
+	}
 	if p.bufIdx > 0 || // partial part
 		p.part == 0 { // 0 length file
 		p.flush()
@@ -228,6 +232,7 @@ func (p *putter) Close() (err error) {
 	p.closed = true
 	close(p.sp.quit)
 
+	// check p.err before completing
 	if p.err != nil {
 		p.abort()
 		return p.err

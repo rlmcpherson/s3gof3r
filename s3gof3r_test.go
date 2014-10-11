@@ -419,6 +419,25 @@ func TestPutWriteAfterClose(t *testing.T) {
 
 }
 
+func TestGetReadAfterClose(t *testing.T) {
+	t.Parallel()
+
+	r, _, err := b.GetReader("test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = r.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = r.Read([]byte("foo"))
+	if err != syscall.EINVAL {
+		t.Errorf("expected %v on read after close, got %v", syscall.EINVAL, err)
+	}
+
+}
+
 func TestPutterAfterError(t *testing.T) {
 	t.Parallel()
 
