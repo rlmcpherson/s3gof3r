@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -393,6 +394,75 @@ func TestGetVersion(t *testing.T) {
 		}
 		r.Close()
 		errComp(tt.err, err, t, tt)
+	}
+
+}
+
+func TestPutWriteAfterClose(t *testing.T) {
+	t.Parallel()
+
+	w, err := b.PutWriter("test", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = w.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := make([]byte, 10)
+
+	_, err = w.Write(p)
+	if err != syscall.EINVAL {
+		t.Errorf("expected %v on write after close, got %v", syscall.EINVAL, err)
+	}
+
+}
+
+func TestPutterAfterError(t *testing.T) {
+	t.Parallel()
+
+	w, err := b.PutWriter("test", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, ok := w.(*putter)
+	if !ok {
+		t.Fatal("putter type cast failed")
+	}
+	terr := fmt.Errorf("test error")
+	p.err = terr
+	_, err = w.Write([]byte("foo"))
+	if err != terr {
+		t.Errorf("expected error %v on Write, got %v", terr, err)
+	}
+	err = w.Close()
+	if err != terr {
+		t.Errorf("expected error %v on Close, got %v", terr, err)
+	}
+
+}
+
+func TestGetterAfterError(t *testing.T) {
+	t.Parallel()
+
+	r, _, err := b.GetReader("test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, ok := r.(*getter)
+	if !ok {
+		t.Fatal("getter type cast failed")
+	}
+	terr := fmt.Errorf("test error")
+	g.err = terr
+	_, err = r.Read([]byte("foo"))
+	if err != terr {
+		t.Errorf("expected error %v on Read, got %v", terr, err)
+	}
+	err = r.Close()
+	if err != terr {
+		t.Errorf("expected error %v on Close, got %v", terr, err)
 	}
 
 }
