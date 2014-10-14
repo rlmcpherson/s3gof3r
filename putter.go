@@ -48,7 +48,7 @@ type putter struct {
 
 	bufsz      int64
 	buf        []byte
-	bufIdx     int
+	bufbytes   int // bytes written to current buffer
 	ch         chan *part
 	part       int
 	closed     bool
@@ -118,17 +118,16 @@ func (p *putter) Write(b []byte) (int, error) {
 	for nw < len(b) {
 		if p.buf == nil {
 			p.buf = <-p.sp.get
-			p.bufIdx = 0
 			if int64(cap(p.buf)) < p.bufsz {
 				p.buf = make([]byte, p.bufsz)
 				runtime.GC()
 			}
 		}
-		n := copy(p.buf[p.bufIdx:], b[nw:])
-		p.bufIdx += n
+		n := copy(p.buf[p.bufbytes:], b[nw:])
+		p.bufbytes += n
 		nw += n
 
-		if len(p.buf) == p.bufIdx {
+		if len(p.buf) == p.bufbytes {
 			p.flush()
 		}
 	}
@@ -138,8 +137,8 @@ func (p *putter) Write(b []byte) (int, error) {
 func (p *putter) flush() {
 	p.wg.Add(1)
 	p.part++
-	p.putsz += int64(p.bufIdx)
-	part := &part{bytes.NewReader(p.buf[:p.bufIdx]), int64(p.bufIdx), p.buf, p.part, "", ""}
+	p.putsz += int64(p.bufbytes)
+	part := &part{bytes.NewReader(p.buf[:p.bufbytes]), int64(p.bufbytes), p.buf, p.part, "", ""}
 	var err error
 	part.contentMd5, part.ETag, err = p.md5Content(part.r)
 	if err != nil {
@@ -148,16 +147,15 @@ func (p *putter) flush() {
 
 	p.xml.Part = append(p.xml.Part, part)
 	p.ch <- part
-	p.buf = nil
+	p.buf, p.bufbytes = nil, 0
+
 	// if necessary, double buffer size every 2000 parts due to the 10000-part AWS limit
 	// to reach the 5 Terabyte max object size, initial part size must be ~85 MB
 	if p.part%2000 == 0 && growPartSize(p.part, p.bufsz, p.putsz) {
 		p.bufsz = min64(p.bufsz*2, maxPartSize)
 		p.sp.sizech <- p.bufsz // update pool buffer size
 		logger.debugPrintf("part size doubled to %d", p.bufsz)
-
 	}
-
 }
 
 func (p *putter) worker() {
@@ -223,7 +221,7 @@ func (p *putter) Close() (err error) {
 		p.abort()
 		return p.err
 	}
-	if p.bufIdx > 0 || // partial part
+	if p.bufbytes > 0 || // partial part
 		p.part == 0 { // 0 length file
 		p.flush()
 	}

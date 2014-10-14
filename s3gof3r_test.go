@@ -137,6 +137,9 @@ func TestPutMulti(t *testing.T) {
 	t.Parallel()
 	var putMultiTests = []putMulti{
 		{"5mb_test.test", &randSrc{Size: int(5 * mb)}, goodHeader(), nil, 5 * mb, nil},
+		{"10mb_test.test", &randSrc{Size: int(10 * mb)}, goodHeader(),
+			&Config{Concurrency: 2, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https",
+				Client: ClientWithTimeout(2 * time.Second)}, 10 * mb, nil},
 		{"11mb_test.test", &randSrc{Size: int(11 * mb)}, goodHeader(),
 			&Config{Concurrency: 3, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https",
 				Client: ClientWithTimeout(5 * time.Second)}, 11 * mb, nil},
@@ -148,7 +151,7 @@ func TestPutMulti(t *testing.T) {
 			&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: true, Scheme: "https",
 				Client: ClientWithTimeout(1 * time.Millisecond)}, 10 * mb,
 			errors.New("timeout")},
-		{"smallpart", &randSrc{Size: int(6 * mb)}, goodHeader(),
+		{"toosmallpart", &randSrc{Size: int(6 * mb)}, goodHeader(),
 			&Config{Concurrency: 4, PartSize: 2 * mb, NTry: 3, Md5Check: false, Scheme: "https",
 				Client: ClientWithTimeout(5 * time.Second)}, 6 * mb, nil},
 	}
