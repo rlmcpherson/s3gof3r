@@ -38,12 +38,11 @@ These tests were performed on an m1.xlarge EC2 instance with a virtualized 1 Gig
 
 - *Retry Everything:* All http requests and every part is retried on both uploads and downloads. Requests to S3 frequently time out, especially under high load, so this is essential to complete large uploads or downloads.
 
-- *Memory Efficiency:* Memory used to upload and download parts is recycled. For an upload with the default concurrency of 10 and part size of 20 MB, the maximum memory usage is less than 250 MB and does not depend on the size of the upload. For downloads with the same default configuration, maximum memory usage will not exceed 450 MB. The additional memory usage vs. uploading is due to the need to reorder parts before adding them to the stream.
+- *Memory Efficiency:* Memory used to upload and download parts is recycled. For an upload or download with the default concurrency of 10 and part size of 20 MB, the maximum memory usage is less than 300 MB. Memory footprint can be further reduced by reducing part size or concurrency. 
 
 
 
-
-## Installation ##
+## Installation
 
 s3gof3r is written in Go and requires a Go installation. It can be installed with `go get` to download and compile it from source. To install the command-line tool, `gof3r`:
 
@@ -53,13 +52,13 @@ To install just the package for use in other Go programs:
 
     $ go get github.com/rlmcpherson/s3gof3r
 
-### Release Binaries ###
+### Release Binaries
 
 To try the latest release of the gof3r command-line interface without installing go, download the statically-linked binary for your architecture from **[Github Releases](https://github.com/rlmcpherson/s3gof3r/releases).**
 
 
 
-## Gof3r (Command-line Interface) Usage: ##
+## gof3r (command-line interface) usage:
 
  ```
    To stream up to S3:
@@ -67,9 +66,9 @@ To try the latest release of the gof3r command-line interface without installing
    To stream down from S3:
       $ gof3r get -b <bucket> -k <s3_path> | <output_stream>
    To upload a file to S3:
-      $ gof3r  put --path=<local_path> --bucket=<bucket> --key=<s3_path> --header=<http_header1> --header=<http_header2>...
+      $ $ gof3r cp <local_path> s3://<bucket>/<s3_path>
    To download a file from S3:
-      $ gof3r  get --bucket=<bucket> --key=<s3_path>
+      $ gof3r cp s3://<bucket>/<s3_path> <local_path>
 ```
 
  Set AWS keys as environment Variables:
@@ -85,66 +84,15 @@ Gof3r also supports IAM role-based keys from EC2 instance metadata. If available
 
   ```
   $ tar -cf - /foo_dir/ | gof3r put -b my_s3_bucket -k bar_dir/s3_object -m x-amz-meta-custom-metadata:abc123 -m x-amz-server-side-encryption:AES256
-  $ gof3r get -b my_s3_bucket -k bar_dir/s3_object | tar -x
-  ```
- Complete Usage: get command:
-
- ```
-   gof3r [OPTIONS] get [get-OPTIONS]
-
-   get (download) from S3
-
-   Help Options:
-   -h, --help          Show this help message
-
-   get (download) from S3:
-   -p, --path=         Path to file. Defaults to standard output for streaming. (/dev/stdout)
-   -k, --key=          key of s3 object
-   -b, --bucket=       s3 bucket
-   --md5Check-off      Do not use md5 hash checking to ensure data integrity.
-		       By default, the md5 hash of is calculated concurrently
-		       during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
-   -c, --concurrency=  Concurrency of transfers (20)
-   -s, --partsize=     initial size of concurrent parts, in bytes (20 MB)
-   --debug             Print debug statements and dump stacks.
-
-   Help Options:
-   -h, --help          Show this help message
-```
-
- Complete Usage: put command:
-
- ```
-   gof3r [OPTIONS] put [put-OPTIONS]
-
-   put (upload)to S3
-
-   Help Options:
-     -h, --help          Show this help message
-
-   put (upload) to S3:
-     -p, --path=         Path to file. Defaults to standard input for streaming. (/dev/stdin)
-     -m, --header=       HTTP headers
-     -k, --key=          key of s3 object
-     -b, --bucket=       s3 bucket
-	 --md5Check-off  Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently
-			 during puts, stored at <bucket>.md5/<key>.md5, and verified on gets.
-     -c, --concurrency=  Concurrency of transfers (20)
-     -s, --partsize=     initial size of concurrent parts, in bytes (20 MB)
-	 --debug         Print debug statements and dump stacks.
-
-   Help Options:
-     -h, --help          Show this help message
- ```
+  $ gof3r get -b my_s3_bucket -k bar_dir/s3_object | tar -x    
+  ```  
+  **see the [gof3r man page](http://randallmcpherson.com/s3gof3r/gof3r/gof3r.html) for complete usage**
  
-## Documentation ##
+## Documentation
 
-**See godoc.org for full documentation, including the s3gof3r package api:**
+**s3gof3r package:** See the [godocs](http://godoc.org/github.com/rlmcpherson/s3gof3r) for api documentation.
 
-s3gof3r package: [http://godoc.org/github.com/rlmcpherson/s3gof3r](http://godoc.org/github.com/rlmcpherson/s3gof3r)
+**gof3r cli :**  [godoc](http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r) and [gof3r man page](http://randallmcpherson.com/s3gof3r/gof3r/gof3r.html)
 
-command-line interface: [http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r](http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r)
 
-## Mailing List ##
-
-https://groups.google.com/forum/#!forum/s3gof3r
+Have a question? Ask it on the [s3gof3r Mailing List](https://groups.google.com/forum/#!forum/s3gof3r)
