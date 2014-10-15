@@ -11,17 +11,19 @@ import (
 	"github.com/rlmcpherson/s3gof3r"
 )
 
+type CpArg struct {
+	Source string `name:"source"`
+	Dest   string `name:"dest"`
+}
+
 type cpOpts struct {
 	DataOpts
 	CommonOpts
 	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc." ini-name:"header"`
+	CpArg  `positional-args:"true" required:"true"`
 }
 
 var cp cpOpts
-
-func (cp *cpOpts) Usage() string {
-	return "<source> <dest> [cp-OPTIONS]"
-}
 
 func (cp *cpOpts) Execute(args []string) (err error) {
 
@@ -41,39 +43,33 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 	conf.Md5Check = !cp.NoMd5
 	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, cp.Debug)
 
-	// parse positional cp args
-	if len(args) != 2 {
-		return fmt.Errorf("cp: source and destination arguments required")
-	}
-
-	var urls [2]*url.URL
-	for i, a := range args {
-		urls[i], err = url.Parse(a)
+	src, err := func(src string) (io.ReadCloser, error) {
+		u, err := url.Parse(src)
 		if err != nil {
-			return fmt.Errorf("parse error: %s", err)
+			return nil, fmt.Errorf("parse error: %s", err)
 		}
-		if urls[i].Host != "" && urls[i].Scheme != "s3" {
-			return fmt.Errorf("parse error: %s", urls[i].String())
-		}
-	}
 
-	src, err := func(src *url.URL) (io.ReadCloser, error) {
-		if src.Host == "" {
-			return os.Open(src.Path)
+		if u.Host == "" {
+			return os.Open(u.Path)
 		}
-		r, _, err := s3.Bucket(src.Host).GetReader(src.Path, conf)
+		r, _, err := s3.Bucket(u.Host).GetReader(u.Path, conf)
 		return r, err
-	}(urls[0])
+	}(cp.Source)
 	if err != nil {
 		return
 	}
 
-	dst, err := func(dst *url.URL) (io.WriteCloser, error) {
-		if dst.Host == "" {
-			return os.Create(dst.Path)
+	dst, err := func(dst string) (io.WriteCloser, error) {
+		u, err := url.Parse(dst)
+		if err != nil {
+			return nil, fmt.Errorf("parse error: %s", err)
 		}
-		return s3.Bucket(dst.Host).PutWriter(dst.Path, cp.Header, conf)
-	}(urls[1])
+
+		if u.Host == "" {
+			return os.Create(u.Path)
+		}
+		return s3.Bucket(u.Host).PutWriter(u.Path, cp.Header, conf)
+	}(cp.Dest)
 	if err != nil {
 		return
 	}
@@ -84,10 +80,7 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 	if err = src.Close(); err != nil {
 		return
 	}
-	if err = dst.Close(); err != nil {
-		return
-	}
-	return
+	return dst.Close()
 }
 
 func init() {
@@ -95,6 +88,5 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cmd.ArgsRequired = true
 	cmd.Aliases = []string{"copy"}
 }
