@@ -151,7 +151,7 @@ func (p *putter) flush() {
 
 	// if necessary, double buffer size every 2000 parts due to the 10000-part AWS limit
 	// to reach the 5 Terabyte max object size, initial part size must be ~85 MB
-	if p.part%2000 == 0 && growPartSize(p.part, p.bufsz, p.putsz) {
+	if p.part%2000 == 0 && p.part < maxNPart && growPartSize(p.part, p.bufsz, p.putsz) {
 		p.bufsz = min64(p.bufsz*2, maxPartSize)
 		p.sp.sizech <- p.bufsz // update pool buffer size
 		logger.debugPrintf("part size doubled to %d", p.bufsz)
