@@ -141,7 +141,21 @@ func (b *Bucket) conf() *Config {
 }
 
 // Delete deletes the key at path
+// If the path does not exist, Delete returns nil (no error).
 func (b *Bucket) Delete(path string) error {
+	if err := b.delete(path); err != nil {
+		return err
+	}
+	// try to delete md5 file
+	if err := b.delete(fmt.Sprintf("/.md5/%s.md5", path)); err != nil {
+		return err
+	}
+
+	logger.Printf("%s deleted from %s\n", path, b.Name)
+	return nil
+}
+
+func (b *Bucket) delete(path string) error {
 	u, err := b.url(path, b.conf())
 	if err != nil {
 		return err
@@ -159,8 +173,6 @@ func (b *Bucket) Delete(path string) error {
 	if resp.StatusCode != 204 {
 		return newRespError(resp)
 	}
-	logger.Printf("%s deleted\n", u.String())
-
 	return nil
 }
 
