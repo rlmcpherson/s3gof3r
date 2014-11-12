@@ -86,13 +86,13 @@ gof3r also supports IAM role-based keys from EC2 instance metadata. If available
   $ tar -cf - /foo_dir/ | gof3r put -b my_s3_bucket -k bar_dir/s3_object -m x-amz-meta-custom-metadata:abc123 -m x-amz-server-side-encryption:AES256
   $ gof3r get -b my_s3_bucket -k bar_dir/s3_object | tar -x    
   ```  
-  **see the [gof3r man page](http://randallmcpherson.com/s3gof3r/gof3r/gof3r.html) for complete usage**
+  **see the [gof3r man page](http://randallmcpherson.com/gof3r.html) for complete usage**
  
 ## Documentation
 
 **s3gof3r package:** See the [godocs](http://godoc.org/github.com/rlmcpherson/s3gof3r) for api documentation.
 
-**gof3r cli :**  [godoc](http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r) and [gof3r man page](http://randallmcpherson.com/s3gof3r/gof3r/gof3r.html)
+**gof3r cli :**  [godoc](http://godoc.org/github.com/rlmcpherson/s3gof3r/gof3r) and [gof3r man page](http://randallmcpherson.com/gof3r.html)
 
 
 Have a question? Ask it on the [s3gof3r Mailing List](https://groups.google.com/forum/#!forum/s3gof3r)
