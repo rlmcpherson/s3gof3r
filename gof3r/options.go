@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -20,12 +21,18 @@ type CommonOpts struct {
 	Debug    bool   `long:"debug" description:"Enable debug logging." ini-name:"debug"`
 }
 
-// CommonOpts are Options common to cp, get, and put commands
+// DataOpts are Options common to cp, get, and put commands
 type DataOpts struct {
 	NoSSL       bool  `long:"no-ssl" description:"Do not use SSL for endpoint connection." ini-name:"no-ssl"`
 	NoMd5       bool  `long:"no-md5" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets." ini-name:"no-md5"`
 	Concurrency int   `long:"concurrency" short:"c" default:"10" description:"Concurrency of transfers" ini-name:"concurrency"`
 	PartSize    int64 `long:"partsize" short:"s" description:"Initial size of concurrent parts, in bytes" default:"20971520" ini-name:"partsize"`
+}
+
+// UpOpts are Options for uploading common to cp and put commands
+type UpOpts struct {
+	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc." ini-name:"header"`
+	ACL    string      `long:"acl" description:"canned acl to apply to the object"`
 }
 
 var appOpts struct {
@@ -103,4 +110,12 @@ func homeDir() (string, error) {
 		return strings.TrimSpace(string(h)), nil
 	}
 	return "", fmt.Errorf("home directory not found for current user")
+}
+
+// add canned acl to http.Header
+func ACL(h http.Header, acl string) http.Header {
+	if acl != "" {
+		h.Set("x-amz-acl", acl)
+	}
+	return h
 }

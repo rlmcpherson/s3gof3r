@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
 
@@ -19,8 +18,8 @@ type CpArg struct {
 type cpOpts struct {
 	DataOpts
 	CommonOpts
-	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc." ini-name:"header"`
-	CpArg  `positional-args:"true" required:"true"`
+	CpArg `positional-args:"true" required:"true"`
+	UpOpts
 }
 
 var cp cpOpts
@@ -68,7 +67,8 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 		if u.Host == "" {
 			return os.Create(u.Path)
 		}
-		return s3.Bucket(u.Host).PutWriter(u.Path, cp.Header, conf)
+
+		return s3.Bucket(u.Host).PutWriter(u.Path, ACL(cp.Header, cp.ACL), conf)
 	}(cp.Dest)
 	if err != nil {
 		return

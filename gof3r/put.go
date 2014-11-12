@@ -15,7 +15,7 @@ type putOpts struct {
 	Path   string `short:"p" long:"path" description:"Path to file. Defaults to standard output for streaming." no-ini:"true"`
 	DataOpts
 	CommonOpts
-	Header http.Header `long:"header" short:"m" description:"HTTP headers. May be used to set custom metadata, server-side encryption etc." ini-name:"header"`
+	UpOpts
 }
 
 var put putOpts
@@ -50,7 +50,7 @@ func (put *putOpts) Execute(args []string) (err error) {
 		}
 	}
 	defer r.Close()
-	w, err := b.PutWriter(put.Key, put.Header, conf)
+	w, err := b.PutWriter(put.Key, ACL(put.Header, put.ACL), conf)
 	if err != nil {
 		return
 	}
