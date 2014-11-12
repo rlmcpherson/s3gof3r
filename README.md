@@ -78,7 +78,7 @@ To try the latest release of the gof3r command-line interface without installing
   $ export AWS_SECRET_ACCESS_KEY=<secret_key>
 ```
 
-Gof3r also supports IAM role-based keys from EC2 instance metadata. If available and environment variables are not set, these keys are used are used automatically. See http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html.
+gof3r also supports IAM role-based keys from EC2 instance metadata. If available and environment variables are not set, these keys are used are used automatically. (http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
 
  Examples:
 
