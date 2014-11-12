@@ -75,7 +75,7 @@ func TestDefaults(t *testing.T) {
 		},
 		{
 			msg:  "zero value arguments, expecting overwritten arguments",
-			args: []string{"--i=0", "--id=0", "--str=\"\"", "--strd=\"\"", "--t=0ms", "--td=0s", "--m=:0", "--md=:0", "--s=0", "--sd=0"},
+			args: []string{"--i=0", "--id=0", "--str", "", "--strd=\"\"", "--t=0ms", "--td=0s", "--m=:0", "--md=:0", "--s=0", "--sd=0"},
 			expected: defaultOptions{
 				Int:        0,
 				IntDefault: 0,
@@ -302,6 +302,57 @@ func TestEnvDefaults(t *testing.T) {
 
 		if !reflect.DeepEqual(opts, test.expected) {
 			t.Errorf("%s:\nUnexpected options with arguments %+v\nexpected\n%+v\nbut got\n%+v\n", test.msg, test.args, test.expected, opts)
+		}
+	}
+}
+
+func TestOptionAsArgument(t *testing.T) {
+	var tests = []struct {
+		args        []string
+		expectError bool
+		errType     ErrorType
+		errMsg      string
+	}{
+		{
+			// short option must not be accepted as argument
+			args:        []string{"--string-slice", "foobar", "--string-slice", "-o"},
+			expectError: true,
+			errType:     ErrExpectedArgument,
+			errMsg:      "expected argument for flag `--string-slice', but got option `-o'",
+		},
+		{
+			// long option must not be accepted as argument
+			args:        []string{"--string-slice", "foobar", "--string-slice", "--other-option"},
+			expectError: true,
+			errType:     ErrExpectedArgument,
+			errMsg:      "expected argument for flag `--string-slice', but got option `--other-option'",
+		},
+		{
+			// long option must not be accepted as argument
+			args:        []string{"--string-slice", "--"},
+			expectError: true,
+			errType:     ErrExpectedArgument,
+			errMsg:      "expected argument for flag `--string-slice', but got option `--'",
+		},
+		{
+			// quoted and appended option should be accepted as argument (even if it looks like an option)
+			args: []string{"--string-slice", "foobar", "--string-slice=\"--other-option\""},
+		},
+		{
+			// Accept any single character arguments including '-'
+			args: []string{"--string-slice", "-"},
+		},
+	}
+	var opts struct {
+		StringSlice []string `long:"string-slice"`
+		OtherOption bool     `long:"other-option" short:"o"`
+	}
+
+	for _, test := range tests {
+		if test.expectError {
+			assertParseFail(t, test.errType, test.errMsg, &opts, test.args...)
+		} else {
+			assertParseSuccess(t, &opts, test.args...)
 		}
 	}
 }

@@ -34,7 +34,7 @@ to allow users to specify command line options. This results in very simple
 and concise specification of your application options. For example:
 
     type Options struct {
-	Verbose []bool `short:"v" long:"verbose" description:"Show verbose debug information"`
+        Verbose []bool `short:"v" long:"verbose" description:"Show verbose debug information"`
     }
 
 This specifies one option with a short name -v and a long name --verbose.
