@@ -94,7 +94,7 @@ func TestPutWriter(t *testing.T) {
 		{"test0byte", []byte(""), nil, nil, 0, nil},
 		{"testhg", []byte("foo"), goodHeader(), nil, 3, nil},
 		{"testhb", []byte("foo"), badHeader(), nil, 3,
-			&RespError{StatusCode: 400, Message: "The Encryption request you specified is not valid. Supported value: AES256."}},
+			&RespError{StatusCode: 400, Message: "The encryption method specified is not supported"}},
 		{"nomd5", []byte("foo"), goodHeader(),
 			&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: false, Scheme: "http", Client: http.DefaultClient}, 3, nil},
 		{"noconc", []byte("foo"), nil,
