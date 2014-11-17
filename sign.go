@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -36,6 +37,25 @@ var paramsToSign = map[string]bool{
 	"response-content-encoding":    true,
 }
 
+func (b *Bucket) Presign(verb string, url string, expires time.Time) (*url.URL, error) {
+	req, err := http.NewRequest(verb, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	hm := hmac.New(sha1.New, []byte(b.S3.Keys.SecretKey))
+	b.writeQueryStringSignature(hm, req, expires)
+
+	signature := make([]byte, base64.StdEncoding.EncodedLen(hm.Size()))
+	base64.StdEncoding.Encode(signature, hm.Sum(nil))
+	qs := req.URL.Query()
+	qs.Set("AWSAccessKeyId", string(b.S3.Keys.AccessKey))
+	qs.Set("Signature", string(signature))
+	qs.Set("Expires", strconv.FormatInt(expires.Unix(), 10))
+	req.URL.RawQuery = qs.Encode()
+	return req.URL, nil
+}
+
 func (b *Bucket) Sign(req *http.Request) {
 	if req.Header == nil {
 		req.Header = http.Header{}
@@ -51,6 +71,29 @@ func (b *Bucket) Sign(req *http.Request) {
 	signature := make([]byte, base64.StdEncoding.EncodedLen(hm.Size()))
 	base64.StdEncoding.Encode(signature, hm.Sum(nil))
 	req.Header.Set("Authorization", "AWS "+b.S3.Keys.AccessKey+":"+string(signature))
+}
+
+// From Amazon API documentation:
+//
+// Signature = URL-Encode( Base64( HMAC-SHA1( YourSecretAccessKeyID, UTF-8-Encoding-Of( StringToSign ) ) ) );
+//
+// StringToSign = HTTP-VERB + "\n" +
+//   Content-MD5 + "\n" +
+//   Content-Type + "\n" +
+//   Expires + "\n" +
+//   CanonicalizedAmzHeaders +
+//   CanonicalizedResource;
+func (b *Bucket) writeQueryStringSignature(w io.Writer, r *http.Request, expires time.Time) {
+	w.Write([]byte(r.Method))
+	w.Write([]byte{'\n'})
+	w.Write([]byte(r.Header.Get("Content-MD5")))
+	w.Write([]byte{'\n'})
+	w.Write([]byte(r.Header.Get("Content-Type")))
+	w.Write([]byte{'\n'})
+	w.Write([]byte(strconv.FormatInt(expires.Unix(), 10)))
+	w.Write([]byte{'\n'})
+	b.writeCanonicalizedAmzHeaders(w, r)
+	b.writeCanonicializedResource(w, r)
 }
 
 // From Amazon API documentation:
