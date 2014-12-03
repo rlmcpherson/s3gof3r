@@ -5,10 +5,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"strings"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/mitchellh/go-homedir"
 )
 
 const (
@@ -64,7 +63,7 @@ func init() {
 }
 
 func iniPath() (path string, exist bool, err error) {
-	hdir, err := homeDir()
+	hdir, err := homedir.Dir()
 	if err != nil {
 		return
 	}
@@ -98,18 +97,6 @@ func writeIni() {
 		fmt.Fprintf(os.Stderr, "ini file written to %s\n", p)
 	}
 	os.Exit(0)
-}
-
-// find unix home directory
-func homeDir() (string, error) {
-	if h := os.Getenv("HOME"); h != "" {
-		return h, nil
-	}
-	h, err := exec.Command("sh", "-c", "eval echo ~$USER").Output()
-	if err == nil && len(h) > 0 {
-		return strings.TrimSpace(string(h)), nil
-	}
-	return "", fmt.Errorf("home directory not found for current user")
 }
 
 // add canned acl to http.Header
