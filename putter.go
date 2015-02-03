@@ -205,6 +205,9 @@ func (p *putter) putPart(part *part) error {
 		return newRespError(resp)
 	}
 	s := resp.Header.Get("etag")
+	if len(s) < 2 {
+		return fmt.Errorf("Got Bad etag:%s", s)
+	}
 	s = s[1 : len(s)-1] // includes quote chars for some reason
 	if part.ETag != s {
 		return fmt.Errorf("Response etag does not match. Remote:%s Calculated:%s", s, p.ETag)
@@ -264,6 +267,9 @@ func (p *putter) Close() (err error) {
 	}
 	// strip part count from end and '"' from front.
 	remoteMd5ofParts := strings.Split(p.ETag, "-")[0]
+	if len(remoteMd5ofParts) == 0 {
+		return fmt.Errorf("Nil ETag")
+	}
 	remoteMd5ofParts = remoteMd5ofParts[1:len(remoteMd5ofParts)]
 	if calculatedMd5ofParts != remoteMd5ofParts {
 		if err != nil {
