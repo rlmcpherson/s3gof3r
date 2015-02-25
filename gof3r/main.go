@@ -73,7 +73,7 @@ func main() {
 					cmd = parser.Active.Name
 				}
 				fmt.Fprintf(os.Stderr, "gof3r error: %s\n", err)
-				fmt.Fprintf(os.Stderr, "run 'gof3r %s -help' for usage.\n", cmd)
+				fmt.Fprintf(os.Stderr, "run 'gof3r %s --help' for usage.\n", cmd)
 			}
 		} else { // handle non-parse errors
 			fmt.Fprintf(os.Stderr, "gof3r error: %s\n", err)
