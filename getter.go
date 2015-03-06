@@ -216,7 +216,7 @@ func (g *getter) Read(p []byte) (int, error) {
 		nw += n
 		g.bytesRead += int64(n)
 
-		if g.cIdx >= g.rChunk.size-1 { // chunk complete
+		if g.cIdx >= g.rChunk.size { // chunk complete
 			g.sp.give <- g.rChunk.b
 			g.chunkID++
 			g.rChunk = nil
