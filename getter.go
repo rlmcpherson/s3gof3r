@@ -77,6 +77,13 @@ func newGetter(getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header
 	if resp.StatusCode != 200 {
 		return nil, nil, newRespError(resp)
 	}
+
+	// Golang changes content-length to -1 when chunked transfer encoding / EOF close response detected
+	if resp.ContentLength == -1 {
+		return nil, nil, fmt.Errorf("Retrieving objects with undefined content-length " +
+			" responses (chunked transfer encoding / EOF close) is not supported")
+	}
+
 	g.contentLen = resp.ContentLength
 	g.chunkTotal = int((g.contentLen + g.bufsz - 1) / g.bufsz) // round up, integer division
 	logger.debugPrintf("object size: %3.2g MB", float64(g.contentLen)/float64((1*mb)))
