@@ -202,7 +202,19 @@ func (g *getter) Read(p []byte) (int, error) {
 	for nw < len(p) {
 		if g.bytesRead == g.contentLen {
 			return nw, io.EOF
+		} else if g.bytesRead > g.contentLen {
+			// Here for robustness / completeness
+			// Should not occur as golang uses LimitedReader up to content-length
+			return nw, fmt.Errorf("Expected %d bytes, received %d (too many bytes)",
+				g.contentLen, g.bytesRead)
 		}
+
+		// If for some reason no more chunks to be read and bytes are off, error, incomplete result
+		if g.chunkID >= g.chunkTotal {
+			return nw, fmt.Errorf("Expected %d bytes, received %d and chunkID %d >= chunkTotal %d (no more chunks remaining)",
+				g.contentLen, g.bytesRead, g.chunkID, g.chunkTotal)
+		}
+
 		if g.rChunk == nil {
 			g.rChunk, err = g.nextChunk()
 			if err != nil {
