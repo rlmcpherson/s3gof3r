@@ -69,7 +69,7 @@ func newGetter(getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header
 	g.md5 = md5.New()
 
 	// use get instead of head for error messaging
-	resp, err := g.retryRequest("GET", g.url.String(), nil)
+	resp, err := g.retryRequest("HEAD", g.url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
