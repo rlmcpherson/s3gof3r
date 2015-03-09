@@ -40,6 +40,7 @@ func TestGetReader(t *testing.T) {
 		{"t1.test", nil, 1 * kb, nil},
 		{"no-md5", &Config{Scheme: "https", Client: ClientWithTimeout(clientTimeout), Md5Check: false}, 1, nil},
 		{"NoKey", nil, -1, &RespError{StatusCode: 404, Message: "The specified key does not exist."}},
+		{"", nil, -1, fmt.Errorf("empty path requested")},
 		{"6_mb_test",
 			&Config{Concurrency: 3, PartSize: 1 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(3 * time.Second)},
 			6 * mb,

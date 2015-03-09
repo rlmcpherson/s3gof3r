@@ -86,7 +86,7 @@ func (s3 *S3) Bucket(name string) *Bucket {
 // DefaultConfig is used if c is nil
 func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
 	if path == "" {
-		return nil, nil, errors.New("Empty path requested")
+		return nil, nil, errors.New("empty path requested")
 	}
 	if c == nil {
 		c = b.conf()
