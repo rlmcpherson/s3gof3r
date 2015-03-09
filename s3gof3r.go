@@ -3,6 +3,7 @@
 package s3gof3r
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -84,6 +85,9 @@ func (s3 *S3) Bucket(name string) *Bucket {
 // Header data from the downloaded object is also returned, useful for reading object metadata.
 // DefaultConfig is used if c is nil
 func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
+	if path == "" {
+		return nil, nil, errors.New("Empty path requested")
+	}
 	if c == nil {
 		c = b.conf()
 	}
