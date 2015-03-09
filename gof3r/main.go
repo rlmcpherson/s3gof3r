@@ -42,7 +42,7 @@ import (
 
 const (
 	name    = "gof3r"
-	version = "0.4.9"
+	version = "0.4.10"
 )
 
 func main() {
