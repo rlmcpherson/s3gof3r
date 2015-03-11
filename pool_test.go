@@ -1,18 +1,23 @@
+// +build !race
+
 package s3gof3r
 
 import (
 	"bytes"
+	"io/ioutil"
 	"log"
 	"strings"
 	"testing"
 	"time"
 )
 
+// The test causes data races due to reading the log buffer and setting bp.time
 func TestBP(t *testing.T) {
 
 	// send log output to buffer
 	lf := *bytes.NewBuffer(nil)
 	SetLogger(&lf, "", log.LstdFlags, true)
+	defer SetLogger(ioutil.Discard, "", log.LstdFlags, true)
 
 	bp := bufferPool(mb)
 	bp.timeout = 1 * time.Millisecond
