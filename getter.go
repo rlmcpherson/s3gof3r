@@ -9,7 +9,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -23,7 +22,6 @@ type getter struct {
 	b     *Bucket
 	bufsz int64
 	err   error
-	wg    sync.WaitGroup
 
 	chunkID    int
 	rChunk     *chunk
@@ -56,7 +54,8 @@ type chunk struct {
 func newGetter(getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header, error) {
 	g := new(getter)
 	g.url = getURL
-	g.c = c
+	g.c, g.b = new(Config), new(Bucket)
+	*g.c, *g.b = *c, *b
 	g.bufsz = max64(c.PartSize, 1)
 	g.c.NTry = max(c.NTry, 1)
 	g.c.Concurrency = max(c.Concurrency, 1)
@@ -139,7 +138,6 @@ func (g *getter) initChunks() {
 		}
 		i += size
 		id++
-		g.wg.Add(1)
 		g.getCh <- c
 	}
 	close(g.getCh)
@@ -153,7 +151,6 @@ func (g *getter) worker() {
 }
 
 func (g *getter) retryGetChunk(c *chunk) {
-	defer g.wg.Done()
 	var err error
 	c.b = <-g.sp.get
 	for i := 0; i < g.c.NTry; i++ {
@@ -273,12 +270,11 @@ func (g *getter) Close() error {
 	if g.closed {
 		return syscall.EINVAL
 	}
+	g.closed = true
+	close(g.sp.quit)
 	if g.err != nil {
 		return g.err
 	}
-	g.wg.Wait()
-	g.closed = true
-	close(g.sp.quit)
 	if g.bytesRead != g.contentLen {
 		return fmt.Errorf("read error: %d bytes read. expected: %d", g.bytesRead, g.contentLen)
 	}

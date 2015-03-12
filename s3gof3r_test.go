@@ -21,42 +21,56 @@ var b *tB
 
 func init() {
 
-	SetLogger(os.Stderr, "test: ", (log.LstdFlags | log.Lshortfile), true)
 	var err error
 	b, err = testBucket()
 	if err != nil {
 		log.Fatal(err)
 	}
+	uploadTestFiles()
+	if testing.Verbose() {
+		SetLogger(os.Stderr, "test: ", (log.LstdFlags | log.Lshortfile), true)
+	}
+}
+
+func uploadTestFiles() {
+	wg := sync.WaitGroup{}
+	for _, tt := range getTests {
+		if tt.rSize >= 0 {
+			wg.Add(1)
+			go func(path string, rSize int64) {
+				err := b.putReader(path, &randSrc{Size: int(rSize)})
+				if err != nil {
+					log.Fatal(err)
+				}
+				wg.Done()
+			}(tt.path, tt.rSize)
+		}
+	}
+	wg.Wait()
+}
+
+var getTests = []struct {
+	path   string
+	config *Config
+	rSize  int64
+	err    error
+}{
+	{"t1.test", nil, 1 * kb, nil},
+	{"no-md5", &Config{Scheme: "https", Client: ClientWithTimeout(clientTimeout), Md5Check: false}, 1, nil},
+	{"NoKey", nil, -1, &RespError{StatusCode: 404, Message: "The specified key does not exist."}},
+	{"", nil, -1, fmt.Errorf("empty path requested")},
+	{"6_mb_test",
+		&Config{Concurrency: 2, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(3 * time.Second)},
+		6 * mb,
+		nil},
+	{"b1", nil, 1, nil},
+	{"0byte", &Config{Scheme: "https", Client: ClientWithTimeout(clientTimeout), Md5Check: false}, 0, nil},
 }
 
 func TestGetReader(t *testing.T) {
 	t.Parallel()
-	var getTests = []struct {
-		path   string
-		config *Config
-		rSize  int64
-		err    error
-	}{
-		{"t1.test", nil, 1 * kb, nil},
-		{"no-md5", &Config{Scheme: "https", Client: ClientWithTimeout(clientTimeout), Md5Check: false}, 1, nil},
-		{"NoKey", nil, -1, &RespError{StatusCode: 404, Message: "The specified key does not exist."}},
-		{"", nil, -1, fmt.Errorf("empty path requested")},
-		{"6_mb_test",
-			&Config{Concurrency: 3, PartSize: 1 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(3 * time.Second)},
-			6 * mb,
-			nil},
-		{"b1", nil, 1, nil},
-		{"0byte", &Config{Scheme: "https", Client: ClientWithTimeout(clientTimeout), Md5Check: false}, 0, nil},
-	}
 
 	for _, tt := range getTests {
-		if tt.rSize >= 0 {
-			err := b.putReader(tt.path, &randSrc{Size: int(tt.rSize)})
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-
 		r, h, err := b.GetReader(tt.path, tt.config)
 		if err != nil {
 			errComp(tt.err, err, t, tt)
@@ -135,26 +149,27 @@ type putMulti struct {
 
 func TestPutMulti(t *testing.T) {
 
+	if testing.Short() {
+		t.Skip("skipping, short mode")
+	}
+
 	t.Parallel()
 	var putMultiTests = []putMulti{
-		{"5mb_test.test", &randSrc{Size: int(5 * mb)}, goodHeader(), nil, 5 * mb, nil},
-		{"10mb_test.test", &randSrc{Size: int(10 * mb)}, goodHeader(),
-			&Config{Concurrency: 2, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https",
-				Client: ClientWithTimeout(2 * time.Second)}, 10 * mb, nil},
-		{"11mb_test.test", &randSrc{Size: int(11 * mb)}, goodHeader(),
+		{"1mb_test.test", &randSrc{Size: int(1 * mb)}, goodHeader(), nil, 1 * mb, nil},
+		{"11kb_test.test", &randSrc{Size: int(11 * kb)}, goodHeader(),
 			&Config{Concurrency: 3, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https",
-				Client: ClientWithTimeout(5 * time.Second)}, 11 * mb, nil},
-		{"timeout.test1", &randSrc{Size: int(5 * mb)}, goodHeader(),
+				Client: ClientWithTimeout(5 * time.Second)}, 11 * kb, nil},
+		{"timeout.test1", &randSrc{Size: int(1 * mb)}, goodHeader(),
 			&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: false, Scheme: "https",
-				Client: ClientWithTimeout(1 * time.Millisecond)}, 5 * mb,
+				Client: ClientWithTimeout(1 * time.Millisecond)}, 1 * mb,
 			errors.New("timeout")},
-		{"timeout.test2", &randSrc{Size: int(10 * mb)}, goodHeader(),
+		{"timeout.test2", &randSrc{Size: int(1 * mb)}, goodHeader(),
 			&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: true, Scheme: "https",
-				Client: ClientWithTimeout(1 * time.Millisecond)}, 10 * mb,
+				Client: ClientWithTimeout(1 * time.Millisecond)}, 1 * mb,
 			errors.New("timeout")},
 		{"toosmallpart", &randSrc{Size: int(6 * mb)}, goodHeader(),
-			&Config{Concurrency: 4, PartSize: 2 * mb, NTry: 3, Md5Check: false, Scheme: "https",
-				Client: ClientWithTimeout(5 * time.Second)}, 6 * mb, nil},
+			&Config{Concurrency: 4, PartSize: 5 * mb, NTry: 3, Md5Check: false, Scheme: "https",
+				Client: ClientWithTimeout(2 * time.Second)}, 6 * mb, nil},
 	}
 	wg := sync.WaitGroup{}
 	for _, tt := range putMultiTests {
@@ -345,7 +360,7 @@ func TestDelete(t *testing.T) {
 
 	for _, tt := range deleteTests {
 		if tt.exist {
-			err := b.putReader(tt.path, &randSrc{Size: int(1 * kb)})
+			err := b.putReader(tt.path, &randSrc{Size: 1})
 
 			if err != nil {
 				t.Fatal(err)
@@ -368,8 +383,7 @@ func TestGetVersion(t *testing.T) {
 		{"key1", nil},
 	}
 	for _, tt := range versionTests {
-		err := b.putReader(tt.path, &randSrc{Size: int(1 * kb)})
-		if err != nil {
+		if err := b.putReader(tt.path, &randSrc{Size: 1}); err != nil {
 			t.Fatal(err)
 		}
 		// get version id
@@ -384,8 +398,7 @@ func TestGetVersion(t *testing.T) {
 			t.SkipNow()
 		}
 		// upload again for > 1 version
-		err = b.putReader(tt.path, &randSrc{Size: int(1 * kb)})
-		if err != nil {
+		if err := b.putReader(tt.path, &randSrc{Size: 1}); err != nil {
 			t.Fatal(err)
 		}
 
@@ -403,7 +416,6 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestPutWriteAfterClose(t *testing.T) {
-	t.Parallel()
 
 	w, err := b.PutWriter("test", nil, nil)
 	if err != nil {
@@ -414,9 +426,7 @@ func TestPutWriteAfterClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := make([]byte, 10)
-
-	_, err = w.Write(p)
+	_, err = w.Write(make([]byte, 10))
 	if err != syscall.EINVAL {
 		t.Errorf("expected %v on write after close, got %v", syscall.EINVAL, err)
 	}
@@ -424,7 +434,6 @@ func TestPutWriteAfterClose(t *testing.T) {
 }
 
 func TestGetReadAfterClose(t *testing.T) {
-	t.Parallel()
 
 	r, _, err := b.GetReader("test", nil)
 	if err != nil {
@@ -435,15 +444,43 @@ func TestGetReadAfterClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = r.Read([]byte("foo"))
+	_, err = r.Read(make([]byte, 10))
 	if err != syscall.EINVAL {
 		t.Errorf("expected %v on read after close, got %v", syscall.EINVAL, err)
 	}
 
 }
 
+// Test Close when downloading of parts still in progress
+func TestGetCloseBeforeRead(t *testing.T) {
+
+	r, _, err := b.GetReader(getTests[4].path, getTests[4].config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	//terr := fmt.Errorf("read error: 0 bytes read. expected: %d", getTests[4].rSize)
+	terr := fmt.Errorf("read error: %d bytes read. expected: %d", 0, getTests[4].rSize)
+	tmr := time.NewTimer(100 * time.Millisecond)
+	defer tmr.Stop()
+	closed := make(chan struct{})
+	go func() {
+		err = r.Close()
+		close(closed)
+		if err != nil && err.Error() != terr.Error() || err == nil {
+			t.Errorf("expected error %v on Close, got %v", terr, err)
+		}
+	}()
+
+	// fail test if close does not return before timeout
+	select {
+	case <-closed:
+		tmr.Stop()
+	case <-tmr.C:
+		t.Fatal("getter close did not return before timeout")
+	}
+}
+
 func TestPutterAfterError(t *testing.T) {
-	t.Parallel()
 
 	w, err := b.PutWriter("test", nil, nil)
 	if err != nil {
@@ -467,7 +504,6 @@ func TestPutterAfterError(t *testing.T) {
 }
 
 func TestGetterAfterError(t *testing.T) {
-	t.Parallel()
 
 	r, _, err := b.GetReader("test", nil)
 	if err != nil {

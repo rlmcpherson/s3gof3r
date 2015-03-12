@@ -76,8 +76,8 @@ type putter struct {
 func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err error) {
 	p = new(putter)
 	p.url = url
-	p.b = b
-	p.c = c
+	p.c, p.b = new(Config), new(Bucket)
+	*p.c, *p.b = *c, *b
 	p.c.Concurrency = max(c.Concurrency, 1)
 	p.c.NTry = max(c.NTry, 1)
 	p.bufsz = max64(minPartSize, c.PartSize)
