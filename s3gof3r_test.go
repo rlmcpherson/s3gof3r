@@ -59,9 +59,9 @@ var getTests = []struct {
 	{"no-md5", &Config{Scheme: "https", Client: ClientWithTimeout(clientTimeout), Md5Check: false}, 1, nil},
 	{"NoKey", nil, -1, &RespError{StatusCode: 404, Message: "The specified key does not exist."}},
 	{"", nil, -1, fmt.Errorf("empty path requested")},
-	{"6_mb_test",
-		&Config{Concurrency: 2, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(3 * time.Second)},
-		6 * mb,
+	{"1_mb_test",
+		&Config{Concurrency: 2, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https", Client: ClientWithTimeout(2 * time.Second)},
+		1 * mb,
 		nil},
 	{"b1", nil, 1, nil},
 	{"0byte", &Config{Scheme: "https", Client: ClientWithTimeout(clientTimeout), Md5Check: false}, 0, nil},
@@ -76,7 +76,7 @@ func TestGetReader(t *testing.T) {
 			errComp(tt.err, err, t, tt)
 			continue
 		}
-		t.Logf("headers %v\n", h)
+		t.Logf("headers for %s: %v\n", tt.path, h)
 		w := ioutil.Discard
 
 		n, err := io.Copy(w, r)
@@ -138,7 +138,7 @@ func TestPutWriter(t *testing.T) {
 	}
 }
 
-type putMulti struct {
+type multiTest struct {
 	path   string
 	data   io.Reader
 	header http.Header
@@ -147,18 +147,21 @@ type putMulti struct {
 	err    error
 }
 
-func TestPutMulti(t *testing.T) {
+// Tests of multipart puts and gets
+// Since the minimum part size is 5 mb, these take longer to run
+// These tests can be skipped by running test with the short flag
+func TestMulti(t *testing.T) {
 
 	if testing.Short() {
 		t.Skip("skipping, short mode")
 	}
 
 	t.Parallel()
-	var putMultiTests = []putMulti{
+	var putMultiTests = []multiTest{
 		{"1mb_test.test", &randSrc{Size: int(1 * mb)}, goodHeader(), nil, 1 * mb, nil},
-		{"11kb_test.test", &randSrc{Size: int(11 * kb)}, goodHeader(),
+		{"21mb_test.test", &randSrc{Size: int(21 * mb)}, goodHeader(),
 			&Config{Concurrency: 3, PartSize: 5 * mb, NTry: 2, Md5Check: true, Scheme: "https",
-				Client: ClientWithTimeout(5 * time.Second)}, 11 * kb, nil},
+				Client: ClientWithTimeout(5 * time.Second)}, 21 * mb, nil},
 		{"timeout.test1", &randSrc{Size: int(1 * mb)}, goodHeader(),
 			&Config{Concurrency: 1, PartSize: 5 * mb, NTry: 1, Md5Check: false, Scheme: "https",
 				Client: ClientWithTimeout(1 * time.Millisecond)}, 1 * mb,
@@ -180,7 +183,7 @@ func TestPutMulti(t *testing.T) {
 		}
 		wg.Add(1)
 
-		go func(w io.WriteCloser, tt putMulti) {
+		go func(w io.WriteCloser, tt multiTest) {
 			n, err := io.Copy(w, tt.data)
 			if err != nil {
 				t.Error(err)
@@ -190,6 +193,25 @@ func TestPutMulti(t *testing.T) {
 
 			}
 			err = w.Close()
+			errComp(tt.err, err, t, tt)
+			r, h, err := b.GetReader(tt.path, tt.config)
+			if err != nil {
+				errComp(tt.err, err, t, tt)
+				//return
+			}
+			t.Logf("headers %v\n", h)
+			gw := ioutil.Discard
+
+			n, err = io.Copy(gw, r)
+			if err != nil {
+				t.Error(err)
+			}
+			if n != tt.wSize {
+				t.Errorf("Expected size: %d. Actual: %d", tt.wSize, n)
+
+			}
+			t.Logf("got %s", tt.path)
+			err = r.Close()
 			errComp(tt.err, err, t, tt)
 			wg.Done()
 		}(w, tt)
@@ -416,6 +438,7 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestPutWriteAfterClose(t *testing.T) {
+	t.Parallel()
 
 	w, err := b.PutWriter("test", nil, nil)
 	if err != nil {
@@ -434,6 +457,7 @@ func TestPutWriteAfterClose(t *testing.T) {
 }
 
 func TestGetReadAfterClose(t *testing.T) {
+	t.Parallel()
 
 	r, _, err := b.GetReader("test", nil)
 	if err != nil {
