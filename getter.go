@@ -9,12 +9,13 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"sync"
 	"syscall"
 	"time"
 )
 
 const (
-	qWaitSz = 2
+	qWaitMax = 2
 )
 
 type getter struct {
@@ -29,10 +30,12 @@ type getter struct {
 	bytesRead  int64
 	chunkTotal int
 
-	readCh chan *chunk
-	getCh  chan *chunk
-	quit   chan struct{}
-	qWait  map[int]*chunk
+	readCh   chan *chunk
+	getCh    chan *chunk
+	quit     chan struct{}
+	qWait    map[int]*chunk
+	qWaitLen uint
+	cond     sync.Cond
 
 	sp *bp
 
@@ -66,6 +69,7 @@ func newGetter(getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header
 	g.qWait = make(map[int]*chunk)
 	g.b = b
 	g.md5 = md5.New()
+	g.cond = sync.Cond{L: &sync.Mutex{}}
 
 	// use get instead of head for error messaging
 	resp, err := g.retryRequest("GET", g.url.String(), nil)
@@ -121,10 +125,6 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 func (g *getter) initChunks() {
 	id := 0
 	for i := int64(0); i < g.contentLen; {
-		for len(g.qWait) >= qWaitSz {
-			// Limit growth of qWait
-			time.Sleep(100 * time.Millisecond)
-		}
 		size := min64(g.bufsz, g.contentLen-i)
 		c := &chunk{
 			id: id,
@@ -186,11 +186,21 @@ func (g *getter) getChunk(c *chunk) error {
 	if err != nil {
 		return err
 	}
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
 	if int64(n) != c.size {
 		return fmt.Errorf("chunk %d: Expected %d bytes, received %d",
 			c.id, c.size, n)
 	}
 	g.readCh <- c
+
+	// wait for qWait to drain before starting next chunk
+	g.cond.L.Lock()
+	for g.qWaitLen >= qWaitMax {
+		g.cond.Wait()
+	}
+	g.cond.L.Unlock()
 	return nil
 }
 
@@ -249,6 +259,10 @@ func (g *getter) nextChunk() (*chunk, error) {
 		c := g.qWait[g.chunkID]
 		if c != nil {
 			delete(g.qWait, g.chunkID)
+			g.cond.L.Lock()
+			g.qWaitLen--
+			g.cond.L.Unlock()
+			g.cond.Signal() // wake up waiting worker goroutine
 			if g.c.Md5Check {
 				if _, err := g.md5.Write(c.b[:c.size]); err != nil {
 					return nil, err
@@ -260,6 +274,9 @@ func (g *getter) nextChunk() (*chunk, error) {
 		select {
 		case c := <-g.readCh:
 			g.qWait[c.id] = c
+			g.cond.L.Lock()
+			g.qWaitLen++
+			g.cond.L.Unlock()
 		case <-g.quit:
 			return nil, g.err // fatal error, quit.
 		}
