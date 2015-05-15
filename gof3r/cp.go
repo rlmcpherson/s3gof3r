@@ -57,6 +57,7 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 	if err != nil {
 		return
 	}
+	defer checkClose(src, &err)
 
 	dst, err := func(dst string) (io.WriteCloser, error) {
 		u, err := url.Parse(dst)
@@ -74,13 +75,9 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 		return
 	}
 
-	if _, err = io.Copy(dst, src); err != nil {
-		return
-	}
-	if err = src.Close(); err != nil {
-		return
-	}
-	return dst.Close()
+	defer checkClose(dst, &err)
+	_, err = io.Copy(dst, src)
+	return
 }
 
 func init() {

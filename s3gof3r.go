@@ -84,6 +84,7 @@ func (s3 *S3) Bucket(name string) *Bucket {
 // Data integrity is verified via the option specified in c.
 // Header data from the downloaded object is also returned, useful for reading object metadata.
 // DefaultConfig is used if c is nil
+// Callers should call Close on r to ensure that all resources are released.
 func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
 	if path == "" {
 		return nil, nil, errors.New("empty path requested")
@@ -103,6 +104,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 // Each header in h is added to the HTTP request header. This is useful for specifying
 // options such as server-side encryption in metadata as well as custom user metadata.
 // DefaultConfig is used if c is nil.
+// Callers should call Close on w to ensure that all resources are released.
 func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteCloser, err error) {
 	if c == nil {
 		c = b.conf()

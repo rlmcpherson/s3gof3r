@@ -50,15 +50,13 @@ func (get *getOpts) Execute(args []string) (err error) {
 			return
 		}
 	}
-	defer w.Close()
+	defer checkClose(w, &err)
 	r, header, err := b.GetReader(get.Key, conf)
 	if err != nil {
 		return
 	}
+	defer checkClose(r, &err)
 	if _, err = io.Copy(w, r); err != nil {
-		return
-	}
-	if err = r.Close(); err != nil {
 		return
 	}
 	if get.Debug {

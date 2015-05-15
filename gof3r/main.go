@@ -32,6 +32,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"time"
@@ -97,4 +98,11 @@ func getAWSKeys() (keys s3gof3r.Keys, err error) {
 	}
 	err = errors.New("no AWS keys found")
 	return
+}
+
+func checkClose(c io.Closer, err *error) {
+	cerr := c.Close()
+	if *err == nil {
+		*err = cerr
+	}
 }
