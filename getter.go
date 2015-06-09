@@ -154,12 +154,12 @@ func (g *getter) retryGetChunk(c *chunk) {
 	var err error
 	c.b = <-g.sp.get
 	for i := 0; i < g.c.NTry; i++ {
-		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 		err = g.getChunk(c)
 		if err == nil {
 			return
 		}
 		logger.debugPrintf("error on attempt %d: retrying chunk: %v, error: %s", i, c.id, err)
+		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 	}
 	select {
 	case <-g.quit: // check for closed quit channel before setting error

@@ -169,7 +169,6 @@ func (p *putter) retryPutPart(part *part) {
 	defer p.wg.Done()
 	var err error
 	for i := 0; i < p.c.NTry; i++ {
-		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 		err = p.putPart(part)
 		if err == nil {
 			p.sp.give <- part.b
@@ -177,6 +176,7 @@ func (p *putter) retryPutPart(part *part) {
 			return
 		}
 		logger.debugPrintf("Error on attempt %d: Retrying part: %d, Error: %s", i, part.PartNumber, err)
+		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 	}
 	p.err = err
 }
