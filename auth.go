@@ -40,7 +40,7 @@ func InstanceKeys() (keys Keys, err error) {
 	if err != nil {
 		return
 	}
-	defer checkClose(resp.Body, &err)
+	defer checkClose(resp.Body, err)
 	if resp.StatusCode != 200 {
 		err = newRespError(resp)
 		return
@@ -56,7 +56,7 @@ func InstanceKeys() (keys Keys, err error) {
 	if err != nil {
 		return
 	}
-	defer checkClose(resp.Body, &err)
+	defer checkClose(resp.Body, err)
 	if resp.StatusCode != 200 {
 		err = newRespError(resp)
 		return

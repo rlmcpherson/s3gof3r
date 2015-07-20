@@ -49,12 +49,12 @@ func (put *putOpts) Execute(args []string) (err error) {
 			return
 		}
 	}
-	defer checkClose(r, &err)
+	defer checkClose(r, err)
 	w, err := b.PutWriter(put.Key, ACL(put.Header, put.ACL), conf)
 	if err != nil {
 		return
 	}
-	defer checkClose(w, &err)
+	defer checkClose(w, err)
 	if _, err = io.Copy(w, r); err != nil {
 		return
 	}

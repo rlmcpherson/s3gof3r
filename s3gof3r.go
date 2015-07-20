@@ -175,7 +175,7 @@ func (b *Bucket) delete(path string) error {
 	if err != nil {
 		return err
 	}
-	defer checkClose(resp.Body, &err)
+	defer checkClose(resp.Body, err)
 	if resp.StatusCode != 204 {
 		return newRespError(resp)
 	}
