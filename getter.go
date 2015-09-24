@@ -202,6 +202,9 @@ func (g *getter) getChunk(c *chunk) error {
 	// wait for qWait to drain before starting next chunk
 	g.cond.L.Lock()
 	for g.qWaitLen >= qWaitMax {
+		if g.closed {
+			return nil
+		}
 		g.cond.Wait()
 	}
 	g.cond.L.Unlock()
@@ -293,6 +296,8 @@ func (g *getter) Close() error {
 	}
 	g.closed = true
 	close(g.sp.quit)
+	close(g.quit)
+	g.cond.Broadcast()
 	if g.err != nil {
 		return g.err
 	}
