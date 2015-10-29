@@ -20,7 +20,6 @@ import (
 var b *tB
 
 func init() {
-
 	var err error
 	b, err = testBucket()
 	if err != nil {
@@ -33,7 +32,7 @@ func init() {
 }
 
 func uploadTestFiles() {
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
 	for _, tt := range getTests {
 		if tt.rSize >= 0 {
 			wg.Add(1)
@@ -151,7 +150,6 @@ type multiTest struct {
 // Since the minimum part size is 5 mb, these take longer to run
 // These tests can be skipped by running test with the short flag
 func TestMulti(t *testing.T) {
-
 	if testing.Short() {
 		t.Skip("skipping, short mode")
 	}
@@ -174,7 +172,7 @@ func TestMulti(t *testing.T) {
 			&Config{Concurrency: 4, PartSize: 5 * mb, NTry: 3, Md5Check: false, Scheme: "https",
 				Client: ClientWithTimeout(2 * time.Second)}, 6 * mb, nil},
 	}
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
 	for _, tt := range putMultiTests {
 		w, err := b.PutWriter(tt.path, tt.header, tt.config)
 		if err != nil {
@@ -243,7 +241,6 @@ func testBucket() (*tB, error) {
 }
 
 func (b *tB) putReader(path string, r io.Reader) error {
-
 	if r == nil {
 		return nil // special handling for nil case
 	}
@@ -265,7 +262,6 @@ func (b *tB) putReader(path string, r io.Reader) error {
 }
 
 func errComp(expect, actual error, t *testing.T, tt interface{}) bool {
-
 	if expect == nil && actual == nil {
 		return true
 	}
@@ -301,7 +297,6 @@ type randSrc struct {
 }
 
 func (r *randSrc) Read(p []byte) (int, error) {
-
 	n, err := rand.Read(p)
 	r.total = r.total + n
 	if r.total >= r.Size {
@@ -311,7 +306,6 @@ func (r *randSrc) Read(p []byte) (int, error) {
 }
 
 func ExampleBucket_PutWriter() error {
-
 	k, err := EnvKeys() // get S3 keys from environment
 	if err != nil {
 		return err
@@ -341,7 +335,6 @@ func ExampleBucket_PutWriter() error {
 }
 
 func ExampleBucket_GetReader() error {
-
 	k, err := EnvKeys() // get S3 keys from environment
 	if err != nil {
 		return err
@@ -392,7 +385,6 @@ func TestDelete(t *testing.T) {
 		t.Log(err)
 		errComp(tt.err, err, t, tt)
 	}
-
 }
 
 func TestGetVersion(t *testing.T) {
@@ -434,7 +426,6 @@ func TestGetVersion(t *testing.T) {
 		r.Close()
 		errComp(tt.err, err, t, tt)
 	}
-
 }
 
 func TestPutWriteAfterClose(t *testing.T) {
@@ -453,7 +444,6 @@ func TestPutWriteAfterClose(t *testing.T) {
 	if err != syscall.EINVAL {
 		t.Errorf("expected %v on write after close, got %v", syscall.EINVAL, err)
 	}
-
 }
 
 func TestGetReadAfterClose(t *testing.T) {
@@ -472,12 +462,10 @@ func TestGetReadAfterClose(t *testing.T) {
 	if err != syscall.EINVAL {
 		t.Errorf("expected %v on read after close, got %v", syscall.EINVAL, err)
 	}
-
 }
 
 // Test Close when downloading of parts still in progress
 func TestGetCloseBeforeRead(t *testing.T) {
-
 	r, _, err := b.GetReader(getTests[4].path, getTests[4].config)
 	if err != nil {
 		t.Fatal(err)
@@ -505,7 +493,6 @@ func TestGetCloseBeforeRead(t *testing.T) {
 }
 
 func TestPutterAfterError(t *testing.T) {
-
 	w, err := b.PutWriter("test", nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -524,11 +511,9 @@ func TestPutterAfterError(t *testing.T) {
 	if err != terr {
 		t.Errorf("expected error %v on Close, got %v", terr, err)
 	}
-
 }
 
 func TestGetterAfterError(t *testing.T) {
-
 	r, _, err := b.GetReader("test", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -547,5 +532,24 @@ func TestGetterAfterError(t *testing.T) {
 	if err != terr {
 		t.Errorf("expected error %v on Close, got %v", terr, err)
 	}
+}
 
+var regionsTests = []struct {
+	domain string
+	region string
+	err    error
+}{
+	{domain: "s3.amazonaws.com", region: "us-east-1"},
+	{domain: "s3-external-1.amazonaws.com", region: "us-east-1"},
+	{domain: "s3-sa-east-1.amazonaws.com", region: "sa-east-1"},
+}
+
+func TestRegion(t *testing.T) {
+	for _, tt := range regionsTests {
+		s3 := &S3{Domain: tt.domain}
+		region := s3.Region()
+		if region != tt.region {
+			t.Errorf("wrong region detected, got '%s', expected '%s'", region, tt.region)
+		}
+	}
 }
