@@ -183,7 +183,7 @@ func (g *getter) getChunk(c *chunk) error {
 		return err
 	}
 	defer checkClose(resp.Body, err)
-	if resp.StatusCode != 206 {
+	if resp.StatusCode != 206 && resp.StatusCode != 200 {
 		return newRespError(resp)
 	}
 	n, err := io.ReadAtLeast(resp.Body, c.b, int(c.size))
