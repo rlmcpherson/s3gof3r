@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"sort"
@@ -178,4 +179,14 @@ func sha(data []byte) []byte {
 	hash := sha256.New()
 	hash.Write(data)
 	return hash.Sum(nil)
+}
+
+func shaReader(r io.ReadSeeker) string {
+	hash := sha256.New()
+	start, _ := r.Seek(0, 1)
+	defer r.Seek(start, 0)
+
+	io.Copy(hash, r)
+	sum := hash.Sum(nil)
+	return hex.EncodeToString(sum)
 }

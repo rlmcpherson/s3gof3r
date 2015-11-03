@@ -14,9 +14,7 @@ import (
 	"time"
 )
 
-const (
-	qWaitMax = 2
-)
+const qWaitMax = 2
 
 type getter struct {
 	url   url.URL
@@ -107,6 +105,11 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 		if err != nil {
 			return
 		}
+
+		if body != nil {
+			req.Header.Set(sha256Header, shaReader(body))
+		}
+
 		g.b.Sign(req)
 		resp, err = g.c.Client.Do(req)
 		if err == nil {
@@ -147,7 +150,6 @@ func (g *getter) worker() {
 	for c := range g.getCh {
 		g.retryGetChunk(c)
 	}
-
 }
 
 func (g *getter) retryGetChunk(c *chunk) {
@@ -171,7 +173,6 @@ func (g *getter) retryGetChunk(c *chunk) {
 
 func (g *getter) getChunk(c *chunk) error {
 	// ensure buffer is empty
-
 	r, err := http.NewRequest("GET", g.url.String(), nil)
 	if err != nil {
 		return err
@@ -256,12 +257,10 @@ func (g *getter) Read(p []byte) (int, error) {
 		}
 	}
 	return nw, nil
-
 }
 
 func (g *getter) nextChunk() (*chunk, error) {
 	for {
-
 		// first check qWait
 		c := g.qWait[g.chunkID]
 		if c != nil {
