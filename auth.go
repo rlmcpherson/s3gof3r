@@ -21,7 +21,7 @@ type mdCreds struct {
 	Code            string
 	LastUpdated     string
 	Type            string
-	AccessKeyId     string
+	AccessKeyID     string `xml:"AccessKeyId"`
 	SecretAccessKey string
 	Token           string
 	Expiration      string
@@ -69,7 +69,8 @@ func InstanceKeys() (keys Keys, err error) {
 	if err = json.Unmarshal([]byte(metadata), &creds); err != nil {
 		return
 	}
-	keys = Keys{AccessKey: creds.AccessKeyId,
+	keys = Keys{
+		AccessKey:     creds.AccessKeyID,
 		SecretKey:     creds.SecretAccessKey,
 		SecurityToken: creds.Token,
 	}

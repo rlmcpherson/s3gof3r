@@ -50,13 +50,13 @@ func max64(a, b int64) int64 {
 	return b
 }
 
-// Error type and functions for http response
+// RespError representbs an http error response
 // http://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html
 type RespError struct {
 	Code       string
 	Message    string
 	Resource   string
-	RequestId  string
+	RequestID  string `xml:"RequestId"`
 	StatusCode int
 }
 
