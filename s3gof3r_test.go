@@ -553,3 +553,22 @@ func TestRegion(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkPut(k *testing.B) {
+	k.ReportAllocs()
+	for i := 0; i < k.N; i++ {
+		r := &randSrc{Size: int(21 * mb)}
+		w, _ := b.PutWriter("bench_test", nil, nil)
+		io.Copy(w, r)
+		w.Close()
+	}
+}
+
+func BenchmarkGet(k *testing.B) {
+	k.ReportAllocs()
+	for i := 0; i < k.N; i++ {
+		r, _, _ := b.GetReader("1_mb_test", nil)
+		io.Copy(ioutil.Discard, r)
+		r.Close()
+	}
+}
