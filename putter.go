@@ -61,7 +61,7 @@ type putter struct {
 	sp *bp
 
 	makes    int
-	UploadId string // casing matches s3 xml
+	UploadID string `xml:"UploadId"`
 	xml      struct {
 		XMLName string `xml:"CompleteMultipartUpload"`
 		Part    []*part
@@ -185,7 +185,7 @@ func (p *putter) retryPutPart(part *part) {
 func (p *putter) putPart(part *part) error {
 	v := url.Values{}
 	v.Set("partNumber", strconv.Itoa(part.PartNumber))
-	v.Set("uploadId", p.UploadId)
+	v.Set("uploadId", p.UploadID)
 	if _, err := part.r.Seek(0, 0); err != nil { // move back to beginning, if retrying
 		return err
 	}
@@ -246,7 +246,7 @@ func (p *putter) Close() (err error) {
 	}
 	b := bytes.NewReader(body)
 	v := url.Values{}
-	v.Set("uploadId", p.UploadId)
+	v.Set("uploadId", p.UploadID)
 	resp, err := p.retryRequest("POST", p.url.String()+"?"+v.Encode(), b, nil)
 	if err != nil {
 		p.abort()
@@ -291,7 +291,7 @@ func (p *putter) Close() (err error) {
 // Try to abort multipart upload. Do not error on failure.
 func (p *putter) abort() {
 	v := url.Values{}
-	v.Set("uploadId", p.UploadId)
+	v.Set("uploadId", p.UploadID)
 	s := p.url.String() + "?" + v.Encode()
 	resp, err := p.retryRequest("DELETE", s, nil, nil)
 	if err != nil {
