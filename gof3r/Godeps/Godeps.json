@@ -6,6 +6,10 @@
 			"ImportPath": "github.com/jessevdk/go-flags",
 			"Comment": "v1-269-g292b1d4",
 			"Rev": "292b1d4972df6bccb10ef105f89c8e2fd509780e"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/go-homedir",
+			"Rev": "7d2d8c8a4e078ce3c58736ab521a40b37a504c52"
 		}
 	]
 }
