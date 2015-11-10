@@ -1,12 +1,130 @@
+// Copyright 2012 Jesse van den Kieboom. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package flags
 
 import (
+	"errors"
 	"reflect"
+	"strings"
 	"unicode/utf8"
 	"unsafe"
 )
 
+// ErrNotPointerToStruct indicates that a provided data container is not
+// a pointer to a struct. Only pointers to structs are valid data containers
+// for options.
+var ErrNotPointerToStruct = errors.New("provided data is not a pointer to struct")
+
+// Group represents an option group. Option groups can be used to logically
+// group options together under a description. Groups are only used to provide
+// more structure to options both for the user (as displayed in the help message)
+// and for you, since groups can be nested.
+type Group struct {
+	// A short description of the group. The
+	// short description is primarily used in the built-in generated help
+	// message
+	ShortDescription string
+
+	// A long description of the group. The long
+	// description is primarily used to present information on commands
+	// (Command embeds Group) in the built-in generated help and man pages.
+	LongDescription string
+
+	// The namespace of the group
+	Namespace string
+
+	// If true, the group is not displayed in the help or man page
+	Hidden bool
+
+	// The parent of the group or nil if it has no parent
+	parent interface{}
+
+	// All the options in the group
+	options []*Option
+
+	// All the subgroups
+	groups []*Group
+
+	// Whether the group represents the built-in help group
+	isBuiltinHelp bool
+
+	data interface{}
+}
+
 type scanHandler func(reflect.Value, *reflect.StructField) (bool, error)
+
+// AddGroup adds a new group to the command with the given name and data. The
+// data needs to be a pointer to a struct from which the fields indicate which
+// options are in the group.
+func (g *Group) AddGroup(shortDescription string, longDescription string, data interface{}) (*Group, error) {
+	group := newGroup(shortDescription, longDescription, data)
+
+	group.parent = g
+
+	if err := group.scan(); err != nil {
+		return nil, err
+	}
+
+	g.groups = append(g.groups, group)
+	return group, nil
+}
+
+// Groups returns the list of groups embedded in this group.
+func (g *Group) Groups() []*Group {
+	return g.groups
+}
+
+// Options returns the list of options in this group.
+func (g *Group) Options() []*Option {
+	return g.options
+}
+
+// Find locates the subgroup with the given short description and returns it.
+// If no such group can be found Find will return nil. Note that the description
+// is matched case insensitively.
+func (g *Group) Find(shortDescription string) *Group {
+	lshortDescription := strings.ToLower(shortDescription)
+
+	var ret *Group
+
+	g.eachGroup(func(gg *Group) {
+		if gg != g && strings.ToLower(gg.ShortDescription) == lshortDescription {
+			ret = gg
+		}
+	})
+
+	return ret
+}
+
+func (g *Group) findOption(matcher func(*Option) bool) (option *Option) {
+	g.eachGroup(func(g *Group) {
+		for _, opt := range g.options {
+			if option == nil && matcher(opt) {
+				option = opt
+			}
+		}
+	})
+
+	return option
+}
+
+// Find an option that is part of the group, or any of its subgroups,
+// by matching its long name (including the option namespace).
+func (g *Group) FindOptionByLongName(longName string) *Option {
+	return g.findOption(func(option *Option) bool {
+		return option.LongNameWithNamespace() == longName
+	})
+}
+
+// Find an option that is part of the group, or any of its subgroups,
+// by matching its short name.
+func (g *Group) FindOptionByShortName(shortName rune) *Option {
+	return g.findOption(func(option *Option) bool {
+		return option.ShortName == shortName
+	})
+}
 
 func newGroup(shortDescription string, longDescription string, data interface{}) *Group {
 	return &Group{
@@ -131,6 +249,8 @@ func (g *Group) scanStruct(realval reflect.Value, sfield *reflect.StructField, h
 
 		optional := (mtag.Get("optional") != "")
 		required := (mtag.Get("required") != "")
+		choices := mtag.GetMany("choice")
+		hidden := (mtag.Get("hidden") != "")
 
 		option := &Option{
 			Description:      description,
@@ -144,6 +264,8 @@ func (g *Group) scanStruct(realval reflect.Value, sfield *reflect.StructField, h
 			Required:         required,
 			ValueName:        valueName,
 			DefaultMask:      defaultMask,
+			Choices:          choices,
+			Hidden:           hidden,
 
 			group: g,
 
@@ -207,6 +329,7 @@ func (g *Group) scanSubGroupHandler(realval reflect.Value, sfield *reflect.Struc
 		}
 
 		group.Namespace = mtag.Get("namespace")
+		group.Hidden = mtag.Get("hidden") != ""
 
 		return true, nil
 	}
