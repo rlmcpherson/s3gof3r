@@ -44,7 +44,7 @@ These tests were performed on an m1.xlarge EC2 instance with a virtualized 1 Gig
 
 ## Installation
 
-s3gof3r is written in Go and requires a Go installation. It can be installed with `go get` to download and compile it from source. To install the command-line tool, `gof3r`:
+s3gof3r is written in Go and requires go 1.5 or later. It can be installed with `go get` to download and compile it from source. To install the command-line tool, `gof3r` set `GO15VENDOREXPERIMENT=1` in your environment:
 
     $ go get github.com/rlmcpherson/s3gof3r/gof3r
     
