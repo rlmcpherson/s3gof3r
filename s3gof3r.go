@@ -1,5 +1,4 @@
 // Package s3gof3r provides fast, parallelized, streaming access to Amazon S3. It includes a command-line interface: `gof3r`.
-
 package s3gof3r
 
 import (
@@ -10,16 +9,37 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 )
+
+var regionMatcher = regexp.MustCompile("s3-([a-z0-9-]+).amazonaws.com")
 
 // S3 contains the domain or endpoint of an S3-compatible service and
 // the authentication keys for that service.
 type S3 struct {
 	Domain string // The s3-compatible endpoint. Defaults to "s3.amazonaws.com"
 	Keys
+}
+
+// Region returns the service region infering it from S3 domain.
+func (s *S3) Region() string {
+	switch s.Domain {
+	case "s3.amazonaws.com", "s3-external-1.amazonaws.com":
+		return "us-east-1"
+	default:
+		regions := regionMatcher.FindStringSubmatch(s.Domain)
+		if len(regions) < 2 {
+			if region := os.Getenv("AWS_REGION"); region != "" {
+				return region
+			}
+			panic("can't find endpoint region")
+		}
+		return regions[1]
+	}
 }
 
 // A Bucket for an S3 service.
@@ -52,9 +72,7 @@ var DefaultConfig = &Config{
 }
 
 // http client timeout
-const (
-	clientTimeout = 5 * time.Second
-)
+const clientTimeout = 5 * time.Second
 
 // DefaultDomain is set to the endpoint for the U.S. S3 service.
 var DefaultDomain = "s3.amazonaws.com"
@@ -70,9 +88,9 @@ func New(domain string, keys Keys) *S3 {
 
 // Bucket returns a bucket on s3
 // Bucket Config is initialized to DefaultConfig
-func (s3 *S3) Bucket(name string) *Bucket {
+func (s *S3) Bucket(name string) *Bucket {
 	return &Bucket{
-		S3:     s3,
+		S3:     s,
 		Name:   name,
 		Config: DefaultConfig,
 	}

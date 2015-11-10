@@ -3,7 +3,9 @@ package s3gof3r
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"hash"
@@ -21,11 +23,12 @@ import (
 
 // defined by amazon
 const (
-	minPartSize = 5 * mb
-	maxPartSize = 5 * gb
-	maxObjSize  = 5 * tb
-	maxNPart    = 10000
-	md5Header   = "content-md5"
+	minPartSize  = 5 * mb
+	maxPartSize  = 5 * gb
+	maxObjSize   = 5 * tb
+	maxNPart     = 10000
+	md5Header    = "content-md5"
+	sha256Header = "X-Amz-Content-Sha256"
 )
 
 type part struct {
@@ -33,12 +36,13 @@ type part struct {
 	len int64
 	b   []byte
 
-	// read by xml encoder
+	// Read by xml encoder
 	PartNumber int
 	ETag       string
 
-	// Used for checksum of checksums on completion
-	contentMd5 string
+	// Checksums
+	md5    string
+	sha256 string
 }
 
 type putter struct {
@@ -61,7 +65,7 @@ type putter struct {
 	sp *bp
 
 	makes    int
-	UploadId string // casing matches s3 xml
+	UploadID string `xml:"UploadId"`
 	xml      struct {
 		XMLName string `xml:"CompleteMultipartUpload"`
 		Part    []*part
@@ -138,9 +142,14 @@ func (p *putter) flush() {
 	p.wg.Add(1)
 	p.part++
 	p.putsz += int64(p.bufbytes)
-	part := &part{bytes.NewReader(p.buf[:p.bufbytes]), int64(p.bufbytes), p.buf, p.part, "", ""}
+	part := &part{
+		r:          bytes.NewReader(p.buf[:p.bufbytes]),
+		len:        int64(p.bufbytes),
+		b:          p.buf,
+		PartNumber: p.part,
+	}
 	var err error
-	part.contentMd5, part.ETag, err = p.md5Content(part.r)
+	part.md5, part.sha256, part.ETag, err = p.hashContent(part.r)
 	if err != nil {
 		p.err = err
 	}
@@ -185,7 +194,7 @@ func (p *putter) retryPutPart(part *part) {
 func (p *putter) putPart(part *part) error {
 	v := url.Values{}
 	v.Set("partNumber", strconv.Itoa(part.PartNumber))
-	v.Set("uploadId", p.UploadId)
+	v.Set("uploadId", p.UploadID)
 	if _, err := part.r.Seek(0, 0); err != nil { // move back to beginning, if retrying
 		return err
 	}
@@ -194,7 +203,8 @@ func (p *putter) putPart(part *part) error {
 		return err
 	}
 	req.ContentLength = part.len
-	req.Header.Set(md5Header, part.contentMd5)
+	req.Header.Set(md5Header, part.md5)
+	req.Header.Set(sha256Header, part.sha256)
 	p.b.Sign(req)
 	resp, err := p.c.Client.Do(req)
 	if err != nil {
@@ -246,7 +256,7 @@ func (p *putter) Close() (err error) {
 	}
 	b := bytes.NewReader(body)
 	v := url.Values{}
-	v.Set("uploadId", p.UploadId)
+	v.Set("uploadId", p.UploadID)
 	resp, err := p.retryRequest("POST", p.url.String()+"?"+v.Encode(), b, nil)
 	if err != nil {
 		p.abort()
@@ -291,7 +301,7 @@ func (p *putter) Close() (err error) {
 // Try to abort multipart upload. Do not error on failure.
 func (p *putter) abort() {
 	v := url.Values{}
-	v.Set("uploadId", p.UploadId)
+	v.Set("uploadId", p.UploadID)
 	s := p.url.String() + "?" + v.Encode()
 	resp, err := p.retryRequest("DELETE", s, nil, nil)
 	if err != nil {
@@ -306,19 +316,21 @@ func (p *putter) abort() {
 }
 
 // Md5 functions
-func (p *putter) md5Content(r io.ReadSeeker) (string, string, error) {
-	h := md5.New()
-	mw := io.MultiWriter(h, p.md5)
+func (p *putter) hashContent(r io.ReadSeeker) (string, string, string, error) {
+	m := md5.New()
+	s := sha256.New()
+	mw := io.MultiWriter(m, s, p.md5)
 	if _, err := io.Copy(mw, r); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	sum := h.Sum(nil)
-	hexSum := fmt.Sprintf("%x", sum)
+	md5Sum := m.Sum(nil)
+	shaSum := hex.EncodeToString(s.Sum(nil))
+	etag := hex.EncodeToString(md5Sum)
 	// add to checksum of all parts for verification on upload completion
-	if _, err := p.md5OfParts.Write(sum); err != nil {
-		return "", "", err
+	if _, err := p.md5OfParts.Write(md5Sum); err != nil {
+		return "", "", "", err
 	}
-	return base64.StdEncoding.EncodeToString(sum), hexSum, nil
+	return base64.StdEncoding.EncodeToString(md5Sum), shaSum, etag, nil
 }
 
 // Put md5 file in .md5 subdirectory of bucket  where the file is stored
@@ -361,6 +373,10 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 			for _, v := range h[k] {
 				req.Header.Add(k, v)
 			}
+		}
+
+		if body != nil {
+			req.Header.Set(sha256Header, shaReader(body))
 		}
 
 		p.b.Sign(req)

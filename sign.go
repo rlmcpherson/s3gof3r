@@ -1,139 +1,192 @@
 package s3gof3r
 
 import (
+	"bytes"
 	"crypto/hmac"
-	"crypto/sha1"
-	"encoding/base64"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
+	"io/ioutil"
 	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 	"time"
 )
 
-// See Amazon S3 Developer Guide for explanation
-// http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
-var paramsToSign = map[string]bool{
-	"acl":                          true,
-	"location":                     true,
-	"logging":                      true,
-	"notification":                 true,
-	"partNumber":                   true,
-	"policy":                       true,
-	"requestPayment":               true,
-	"torrent":                      true,
-	"uploadId":                     true,
-	"uploads":                      true,
-	"versionId":                    true,
-	"versioning":                   true,
-	"versions":                     true,
-	"response-content-type":        true,
-	"response-content-language":    true,
-	"response-expires":             true,
-	"response-cache-control":       true,
-	"response-content-disposition": true,
-	"response-content-encoding":    true,
+const (
+	prefix    = "AWS4-HMAC-SHA256"
+	isoFormat = "20060102T150405Z"
+	shortDate = "20060102"
+)
+
+var ignoredHeaders = map[string]bool{
+	"Authorization":  true,
+	"Content-Type":   true,
+	"Content-Length": true,
+	"User-Agent":     true,
 }
 
+type signer struct {
+	Time    time.Time
+	Request *http.Request
+	Region  string
+	Keys    Keys
+
+	credentialString string
+	signedHeaders    string
+	signature        string
+
+	canonicalHeaders string
+	canonicalString  string
+	stringToSign     string
+}
+
+// Sign signs the http.Request
 func (b *Bucket) Sign(req *http.Request) {
 	if req.Header == nil {
 		req.Header = http.Header{}
 	}
-	if dateHeader := req.Header.Get("Date"); dateHeader == "" {
-		req.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
-	}
 	if b.S3.Keys.SecurityToken != "" {
 		req.Header.Set("X-Amz-Security-Token", b.S3.Keys.SecurityToken)
 	}
-	hm := hmac.New(sha1.New, []byte(b.S3.Keys.SecretKey))
-	b.writeSignature(hm, req)
-	signature := make([]byte, base64.StdEncoding.EncodedLen(hm.Size()))
-	base64.StdEncoding.Encode(signature, hm.Sum(nil))
-	req.Header.Set("Authorization", "AWS "+b.S3.Keys.AccessKey+":"+string(signature))
-}
-
-// From Amazon API documentation:
-//
-// Signature = Base64( HMAC-SHA1( YourSecretAccessKeyID, UTF-8-Encoding-Of( StringToSign ) ) );
-//
-// StringToSign = HTTP-Verb + "\n" +
-//   Content-MD5 + "\n" +
-//   Content-Type + "\n" +
-//   Date + "\n" +
-//   CanonicalizedAmzHeaders +
-//   CanonicalizedResource;
-func (b *Bucket) writeSignature(w io.Writer, r *http.Request) {
-	w.Write([]byte(r.Method))
-	w.Write([]byte{'\n'})
-	w.Write([]byte(r.Header.Get("content-md5")))
-	w.Write([]byte{'\n'})
-	w.Write([]byte(r.Header.Get("content-type")))
-	w.Write([]byte{'\n'})
-	if _, ok := r.Header["X-Amz-Date"]; !ok {
-		w.Write([]byte(r.Header.Get("date")))
+	req.Header.Set("User-Agent", "S3Gof3r")
+	s := &signer{
+		Time:    time.Now(),
+		Request: req,
+		Region:  b.S3.Region(),
+		Keys:    b.S3.Keys,
 	}
-	r.Header.Set("User-Agent", "S3Gof3r")
-	w.Write([]byte{'\n'})
-	b.writeCanonicalizedAmzHeaders(w, r)
-	b.writeCanonicializedResource(w, r)
+	s.sign()
 }
 
-// See Amazon S3 Developer Guide for explanation
-// http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
-func (b *Bucket) writeCanonicalizedAmzHeaders(w io.Writer, r *http.Request) {
-	var amzHeaders []string
+func (s *signer) sign() {
+	s.buildTime()
+	s.buildCredentialString()
+	s.buildCanonicalHeaders()
+	s.buildCanonicalString()
+	s.buildStringToSign()
+	s.buildSignature()
+	parts := []string{
+		prefix + " Credential=" + s.Keys.AccessKey + "/" + s.credentialString,
+		"SignedHeaders=" + s.signedHeaders,
+		"Signature=" + s.signature,
+	}
+	s.Request.Header.Set("Authorization", strings.Join(parts, ","))
+}
 
-	for h := range r.Header {
-		if strings.HasPrefix(strings.ToLower(h), "x-amz-") {
-			amzHeaders = append(amzHeaders, h)
+func (s *signer) buildTime() {
+	s.Request.Header.Set("X-Amz-Date", s.Time.UTC().Format(isoFormat))
+}
+
+func (s *signer) buildCredentialString() {
+	s.credentialString = strings.Join([]string{
+		s.Time.UTC().Format(shortDate),
+		s.Region,
+		"s3",
+		"aws4_request",
+	}, "/")
+}
+
+func (s *signer) buildCanonicalHeaders() {
+	var headers []string
+	headers = append(headers, "host")
+	for k := range s.Request.Header {
+		if _, ok := ignoredHeaders[http.CanonicalHeaderKey(k)]; ok {
+			continue
+		}
+		headers = append(headers, strings.ToLower(k))
+	}
+	sort.Strings(headers)
+
+	s.signedHeaders = strings.Join(headers, ";")
+
+	headerValues := make([]string, len(headers))
+	for i, k := range headers {
+		if k == "host" {
+			headerValues[i] = "host:" + s.Request.URL.Host
+		} else {
+			headerValues[i] = k + ":" +
+				strings.Join(s.Request.Header[http.CanonicalHeaderKey(k)], ",")
 		}
 	}
-	sort.Strings(amzHeaders)
-	for _, h := range amzHeaders {
-		v := r.Header[h]
-		w.Write([]byte(strings.ToLower(h)))
-		w.Write([]byte(":"))
-		w.Write([]byte(strings.Join(v, ",")))
-		w.Write([]byte("\n"))
-	}
+
+	s.canonicalHeaders = strings.Join(headerValues, "\n")
 }
 
-// From Amazon API documentation:
-//
-// CanonicalizedResource = [ "/" + Bucket ] +
-//    <HTTP-Request-URI, from the protocol name up to the query string> +
-//    [ subresource, if present. For example "?acl", "?location", "?logging", or "?torrent"];
-func (b *Bucket) writeCanonicializedResource(w io.Writer, r *http.Request) {
-	if !strings.Contains(b.Name, ".") { // handling for bucket names containing periods
-		w.Write([]byte("/"))
-		w.Write([]byte(b.Name))
+func (s *signer) buildCanonicalString() {
+	s.Request.URL.RawQuery = strings.Replace(s.Request.URL.Query().Encode(), "+", "%20", -1)
+	uri := s.Request.URL.Opaque
+	if uri != "" {
+		uri = "/" + strings.Join(strings.Split(uri, "/")[3:], "/")
+	} else {
+		uri = s.Request.URL.EscapedPath()
 	}
-	u := &url.URL{Path: r.URL.Path}
-	w.Write([]byte(u.String()))
-	b.writeSubResource(w, r)
+	if uri == "" {
+		uri = "/"
+	}
+
+	s.canonicalString = strings.Join([]string{
+		s.Request.Method,
+		uri,
+		s.Request.URL.RawQuery,
+		s.canonicalHeaders + "\n",
+		s.signedHeaders,
+		s.bodyDigest(),
+	}, "\n")
 }
 
-// See Amazon S3 Developer Guide for explanation
-// http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
-func (b *Bucket) writeSubResource(w io.Writer, r *http.Request) {
-	var sr []string
-	for k, vs := range r.URL.Query() {
-		if paramsToSign[k] {
-			for _, v := range vs {
-				if v == "" {
-					sr = append(sr, k)
-				} else {
-					sr = append(sr, k+"="+v)
-				}
-			}
+func (s *signer) buildStringToSign() {
+	s.stringToSign = strings.Join([]string{
+		prefix,
+		s.Time.UTC().Format(isoFormat),
+		s.credentialString,
+		hex.EncodeToString(sha([]byte(s.canonicalString))),
+	}, "\n")
+}
+
+func (s *signer) buildSignature() {
+	secret := s.Keys.SecretKey
+	date := hmacSign([]byte("AWS4"+secret), []byte(s.Time.UTC().Format(shortDate)))
+	region := hmacSign(date, []byte(s.Region))
+	service := hmacSign(region, []byte("s3"))
+	credentials := hmacSign(service, []byte("aws4_request"))
+	signature := hmacSign(credentials, []byte(s.stringToSign))
+	s.signature = hex.EncodeToString(signature)
+}
+
+func (s *signer) bodyDigest() string {
+	hash := s.Request.Header.Get("X-Amz-Content-Sha256")
+	if hash == "" {
+		if s.Request.Body == nil {
+			hash = hex.EncodeToString(sha([]byte{}))
+		} else {
+			body, _ := ioutil.ReadAll(s.Request.Body)
+			s.Request.Body = ioutil.NopCloser(bytes.NewReader(body))
+			hash = hex.EncodeToString(sha(body))
 		}
+		s.Request.Header.Add("X-Amz-Content-Sha256", hash)
 	}
-	sort.Strings(sr)
-	var q byte = '?'
-	for _, s := range sr {
-		w.Write([]byte{q})
-		w.Write([]byte(s))
-		q = '&'
-	}
+	return hash
+}
+
+func hmacSign(key []byte, data []byte) []byte {
+	hash := hmac.New(sha256.New, key)
+	hash.Write(data)
+	return hash.Sum(nil)
+}
+
+func sha(data []byte) []byte {
+	hash := sha256.New()
+	hash.Write(data)
+	return hash.Sum(nil)
+}
+
+func shaReader(r io.ReadSeeker) string {
+	hash := sha256.New()
+	start, _ := r.Seek(0, 1)
+	defer r.Seek(start, 0)
+
+	io.Copy(hash, r)
+	sum := hash.Sum(nil)
+	return hex.EncodeToString(sum)
 }

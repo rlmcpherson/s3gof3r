@@ -1,2 +1,3 @@
 *.mprof
 *.out
+.env
