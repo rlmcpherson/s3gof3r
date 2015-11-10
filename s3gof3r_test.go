@@ -554,12 +554,26 @@ func TestRegion(t *testing.T) {
 	}
 }
 
+// reduce parallelism and part size to benchmark
+// memory pool reuse
+func benchConfig() *Config {
+	var conf Config
+	conf = *DefaultConfig
+	conf.Concurrency = 4
+	conf.PartSize = 5 * mb
+	return &conf
+}
+
 func BenchmarkPut(k *testing.B) {
+	r := &randSrc{Size: int(300 * mb)}
 	k.ReportAllocs()
 	for i := 0; i < k.N; i++ {
-		r := &randSrc{Size: int(21 * mb)}
-		w, _ := b.PutWriter("bench_test", nil, nil)
-		io.Copy(w, r)
+		w, _ := b.PutWriter("bench_test", nil, benchConfig())
+		n, err := io.Copy(w, r)
+		if err != nil {
+			k.Fatal(err)
+		}
+		k.SetBytes(n)
 		w.Close()
 	}
 }
@@ -567,8 +581,12 @@ func BenchmarkPut(k *testing.B) {
 func BenchmarkGet(k *testing.B) {
 	k.ReportAllocs()
 	for i := 0; i < k.N; i++ {
-		r, _, _ := b.GetReader("1_mb_test", nil)
-		io.Copy(ioutil.Discard, r)
+		r, _, _ := b.GetReader("bench_test", benchConfig())
+		n, err := io.Copy(ioutil.Discard, r)
+		if err != nil {
+			k.Fatal(err)
+		}
+		k.SetBytes(n)
 		r.Close()
 	}
 }
