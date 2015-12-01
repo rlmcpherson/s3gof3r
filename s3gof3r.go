@@ -139,21 +139,22 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 // Note: Urls containing some special characters will fail due to net/http bug.
 // See https://code.google.com/p/go/issues/detail?id=5684
 func (b *Bucket) url(bPath string, c *Config) (*url.URL, error) {
-	u, err := url.Parse(bPath)
-	if err != nil {
-		return nil, err
-	}
-	u.Scheme = c.Scheme
-	// handling for bucket names containing periods
+
+	// handling for bucket names containing periods / explicit PathStyle addressing
 	// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html for details
 	if strings.Contains(b.Name, ".") || c.PathStyle {
-		u.Host = b.S3.Domain
-		u.Path = path.Clean(fmt.Sprintf("/%s/%s", b.Name, u.Path))
+		return &url.URL{
+			Host:   b.S3.Domain,
+			Scheme: c.Scheme,
+			Path:   path.Clean(fmt.Sprintf("/%s/%s", b.Name, bPath)),
+		}, nil
 	} else {
-		u.Host = fmt.Sprintf("%s.%s", b.Name, b.S3.Domain)
-		u.Path = path.Clean(fmt.Sprintf("/%s", u.Path))
+		return &url.URL{
+			Scheme: c.Scheme,
+			Path:   path.Clean(fmt.Sprintf("/%s", bPath)),
+			Host:   path.Clean(fmt.Sprintf("%s.%s", b.Name, b.S3.Domain)),
+		}, nil
 	}
-	return u, nil
 }
 
 func (b *Bucket) conf() *Config {

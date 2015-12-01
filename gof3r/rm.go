@@ -38,7 +38,7 @@ func (rm *rmOpts) Execute(args []string) error {
 	}
 
 	//var urls [1]*url.URL
-	u, err := url.Parse(args[0])
+	u, err := url.ParseRequestURI(args[0])
 	if err != nil {
 		return fmt.Errorf("parse error: %s", err)
 	}
