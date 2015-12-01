@@ -554,6 +554,34 @@ func TestRegion(t *testing.T) {
 	}
 }
 
+func TestBucketURL(t *testing.T) {
+	var urlTests = []struct {
+		bucket string
+		path   string
+		config *Config
+		url    string
+	}{
+		{"bucket1", "path", DefaultConfig, "https://bucket1.s3.amazonaws.com/path"},
+		{"bucket1", "#path", DefaultConfig, `https://bucket1.s3.amazonaws.com/%23path`},
+		{"bucket.2", "path", DefaultConfig, "https://s3.amazonaws.com/bucket.2/path"},
+		{"bucket.2", "#path", DefaultConfig, `https://s3.amazonaws.com/bucket.2/%23path`},
+	}
+
+	for _, tt := range urlTests {
+		s3 := New("", Keys{})
+		b := s3.Bucket(tt.bucket)
+		u, err := b.url(tt.path, tt.config)
+		if err != nil {
+			t.Error(err)
+		}
+		if u.String() != tt.url {
+			t.Errorf("got '%s', expected '%s'", u.String(), tt.url)
+		}
+
+	}
+
+}
+
 // reduce parallelism and part size to benchmark
 // memory pool reuse
 func benchConfig() *Config {
