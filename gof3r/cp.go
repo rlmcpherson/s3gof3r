@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/rlmcpherson/s3gof3r"
 )
@@ -43,14 +44,14 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, cp.Debug)
 
 	src, err := func(src string) (io.ReadCloser, error) {
-		u, err := url.Parse(src)
+		if !strings.HasPrefix(strings.ToLower(src), "s3") {
+			return os.Open(src)
+		}
+		u, err := url.ParseRequestURI(src)
 		if err != nil {
 			return nil, fmt.Errorf("parse error: %s", err)
 		}
 
-		if u.Host == "" {
-			return os.Open(u.Path)
-		}
 		r, _, err := s3.Bucket(u.Host).GetReader(u.Path, conf)
 		return r, err
 	}(cp.Source)
@@ -60,13 +61,12 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 	defer checkClose(src, err)
 
 	dst, err := func(dst string) (io.WriteCloser, error) {
-		u, err := url.Parse(dst)
+		if !strings.HasPrefix(strings.ToLower(dst), "s3") {
+			return os.Create(dst)
+		}
+		u, err := url.ParseRequestURI(dst)
 		if err != nil {
 			return nil, fmt.Errorf("parse error: %s", err)
-		}
-
-		if u.Host == "" {
-			return os.Create(u.Path)
 		}
 
 		return s3.Bucket(u.Host).PutWriter(u.Path, ACL(cp.Header, cp.ACL), conf)
