@@ -361,7 +361,6 @@ func ExampleBucket_GetReader() error {
 }
 
 func TestDelete(t *testing.T) {
-	t.Parallel()
 
 	var deleteTests = []struct {
 		path  string
@@ -563,6 +562,7 @@ func TestBucketURL(t *testing.T) {
 	}{
 		{"bucket1", "path", DefaultConfig, "https://bucket1.s3.amazonaws.com/path"},
 		{"bucket1", "#path", DefaultConfig, `https://bucket1.s3.amazonaws.com/%23path`},
+		{"bucket1", "#path ", DefaultConfig, `https://bucket1.s3.amazonaws.com/%23path%20`},
 		{"bucket.2", "path", DefaultConfig, "https://s3.amazonaws.com/bucket.2/path"},
 		{"bucket.2", "#path", DefaultConfig, `https://s3.amazonaws.com/bucket.2/%23path`},
 	}

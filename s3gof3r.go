@@ -151,8 +151,8 @@ func (b *Bucket) url(bPath string, c *Config) (*url.URL, error) {
 	} else {
 		return &url.URL{
 			Scheme: c.Scheme,
-			Path:   bPath,
-			Host:   fmt.Sprintf("%s.%s", b.Name, b.S3.Domain),
+			Path:   path.Clean(fmt.Sprintf("/%s", bPath)),
+			Host:   path.Clean(fmt.Sprintf("%s.%s", b.Name, b.S3.Domain)),
 		}, nil
 	}
 }
