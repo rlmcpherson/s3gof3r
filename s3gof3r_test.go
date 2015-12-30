@@ -565,6 +565,7 @@ func TestBucketURL(t *testing.T) {
 		{"bucket1", "#path ", DefaultConfig, `https://bucket1.s3.amazonaws.com/%23path%20`},
 		{"bucket.2", "path", DefaultConfig, "https://s3.amazonaws.com/bucket.2/path"},
 		{"bucket.2", "#path", DefaultConfig, `https://s3.amazonaws.com/bucket.2/%23path`},
+		{"bucket.2", "#path?versionId=seQK1YwRAy6Ex25YHb_yJHbo94jSDnpu", DefaultConfig, `https://s3.amazonaws.com/bucket.2/%23path%3FversionId=seQK1YwRAy6Ex25YHb_yJHbo94jSDnpu`}, // versionId-specific handling
 	}
 
 	for _, tt := range urlTests {
