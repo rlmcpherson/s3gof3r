@@ -9,6 +9,7 @@ import (
 var info infoOpts
 
 type infoOpts struct {
+    CommonOpts
 	Key       string `long:"key" short:"k" description:"S3 object key" required:"true" no-ini:"true"`
 	Bucket    string `long:"bucket" short:"b" description:"S3 bucket" required:"true" no-ini:"true"`
 	VersionID string `short:"v" long:"versionId" description:"Version ID of the object. Incompatible with md5 check (use --no-md5)." no-ini:"true"`
@@ -22,13 +23,8 @@ func (info *infoOpts) Execute(args []string) (err error) {
 		return err
 	}
 
-	s3 := s3gof3r.New(get.EndPoint, k)
+	s3 := s3gof3r.New(info.EndPoint, k)
 	b := s3.Bucket(info.Bucket)
-	conf.Concurrency = get.Concurrency
-
-	if get.NoSSL {
-		conf.Scheme = "http"
-	}
 
 	resp, err := s3gof3r.GetInfo(b, s3gof3r.DefaultConfig, info.Key, info.VersionID)
 
