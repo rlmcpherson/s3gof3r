@@ -6,17 +6,6 @@ import (
 	"testing"
 )
 
-var testKeys = Keys{
-	AccessKey: "AKIDEXAMPLE",
-	SecretKey: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
-}
-
-var testTokenKeys = Keys{
-	AccessKey:     "AKIDEXAMPLE",
-	SecretKey:     "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
-	SecurityToken: "testtoken",
-}
-
 type authT struct {
 	env []string
 }
@@ -36,11 +25,36 @@ func (s *authT) restoreEnv() {
 	}
 }
 
-func TestEnvKeys(t *testing.T) {
+func TestEnvKeysWithoutToken(t *testing.T) {
+	testKeys := Keys{
+		AccessKey: "AKIDEXAMPLE",
+		SecretKey: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+	}
 	s := authT{}
 	s.saveEnv()
 	os.Setenv("AWS_ACCESS_KEY_ID", testKeys.AccessKey)
 	os.Setenv("AWS_SECRET_ACCESS_KEY", testKeys.SecretKey)
+	keys, err := EnvKeys()
+	if err != nil {
+		t.Error(err)
+	}
+	if keys != testKeys {
+		t.Errorf("Keys do not match. Expected: %v. Actual: %v", testKeys, keys)
+	}
+	s.restoreEnv()
+}
+
+func TestEnvKeyWithToken(t *testing.T) {
+	testKeys := Keys{
+		AccessKey:     "AKIDEXAMPLE",
+		SecretKey:     "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+		SecurityToken: "testtoken",
+	}
+	s := authT{}
+	s.saveEnv()
+	os.Setenv("AWS_ACCESS_KEY_ID", testKeys.AccessKey)
+	os.Setenv("AWS_SECRET_ACCESS_KEY", testKeys.SecretKey)
+	os.Setenv("AWS_SECURITY_TOKEN", testKeys.SecurityToken)
 	keys, err := EnvKeys()
 	if err != nil {
 		t.Error(err)
