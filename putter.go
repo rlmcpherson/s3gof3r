@@ -385,6 +385,13 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 			return
 		}
 		logger.debugPrintln(err)
+
+		// retry internal server errors after a short delay
+		if resp.StatusCode == 500 {
+			time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
+			continue
+		}
+
 		if body != nil {
 			if _, err = body.Seek(0, 0); err != nil {
 				return
