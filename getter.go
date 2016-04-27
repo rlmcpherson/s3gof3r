@@ -118,7 +118,7 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 		logger.debugPrintln(err)
 
 		// retry internal server errors after a short delay
-		if resp.StatusCode == 500 {
+		if resp != nil && resp.StatusCode == 500 {
 			time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 			continue
 		}
