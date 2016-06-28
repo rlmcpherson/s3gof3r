@@ -27,6 +27,7 @@ type DataOpts struct {
 	NoMd5       bool  `long:"no-md5" description:"Do not use md5 hash checking to ensure data integrity. By default, the md5 hash of is calculated concurrently during puts, stored at <bucket>.md5/<key>.md5, and verified on gets." ini-name:"no-md5"`
 	Concurrency int   `long:"concurrency" short:"c" default:"10" description:"Concurrency of transfers" ini-name:"concurrency"`
 	PartSize    int64 `long:"partsize" short:"s" description:"Initial size of concurrent parts, in bytes" default:"20971520" ini-name:"partsize"`
+	NTry        int   `long:"retries" description:"Number of attempts to try" default:"10" ini-name:"retries"`
 }
 
 // UpOpts are Options for uploading common to cp and put commands
