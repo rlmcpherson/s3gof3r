@@ -39,7 +39,7 @@ func uploadTestFiles() {
 			go func(path string, rSize int64) {
 				err := b.putReader(path, &randSrc{Size: int(rSize)})
 				if err != nil {
-					log.Fatal(err)
+					log.Fatalf("Error uploading test file %s: %s", path, err)
 				}
 				wg.Done()
 			}(tt.path, tt.rSize)
