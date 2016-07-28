@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"syscall"
@@ -617,5 +618,18 @@ func BenchmarkGet(k *testing.B) {
 		}
 		k.SetBytes(n)
 		r.Close()
+	}
+}
+
+func TestObjectMetaData(t *testing.T) {
+	result, err := ObjectMetaData("0byte", DefaultConfig, b.Bucket)
+	if err != nil {
+		t.Fatalf("Getting metadata failed with %s", err)
+	}
+	expect := map[string][]string{
+		"Foo": []string{"bar"},
+	}
+	if !reflect.DeepEqual(result, expect) {
+		t.Fatalf("Expected %v got %v", expect, result)
 	}
 }

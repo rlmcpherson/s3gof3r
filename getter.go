@@ -2,6 +2,7 @@ package s3gof3r
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -337,4 +338,34 @@ func (g *getter) checkMd5() (err error) {
 		return fmt.Errorf("MD5 mismatch. given:%s calculated:%s", givenMd5, calcMd5)
 	}
 	return
+}
+
+var ObjectNotExist = errors.New("Object does not exist")
+
+// ObjectMetaData will return a map of the object's user metadata
+// stored in S3
+func ObjectMetaData(path string, c *Config, b *Bucket) (map[string][]string, error) {
+	getURL, err := b.url(path, c)
+	g := new(getter)
+	g.url = *getURL
+	g.c, g.b = new(Config), new(Bucket)
+	*g.c, *g.b = *c, *b
+	g.c.NTry = max(c.NTry, 1)
+	g.b = b
+
+	// use get instead of head for error messaging
+	resp, err := g.retryRequest("HEAD", g.url.String(), nil)
+	if err != nil {
+		fmt.Println("ERROR after the retryget")
+		return nil, err
+	}
+	resp.Body.Close()
+	switch resp.StatusCode {
+	case 200:
+		return resp.Header, nil
+	case 404:
+		return nil, ObjectNotExist
+	default:
+		return nil, newRespError(resp)
+	}
 }
