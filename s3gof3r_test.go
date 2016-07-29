@@ -621,15 +621,23 @@ func BenchmarkGet(k *testing.B) {
 	}
 }
 
+func equals(t *testing.T, expect interface{}, actual interface{}) {
+	if !reflect.DeepEqual(expect, actual) {
+		t.Fatalf("Expected %v got %v", expect, actual)
+	}
+}
+
 func TestObjectMetaData(t *testing.T) {
-	result, err := ObjectMetaData("0byte", DefaultConfig, b.Bucket)
+	path := "metadatatest"
+	err := b.putReader(path, goodHeader(), &randSrc{Size: 0})
+	result, err := ObjectMetaData(path, DefaultConfig, b.Bucket)
 	if err != nil {
 		t.Fatalf("Getting metadata failed with %s", err)
 	}
-	expect := map[string][]string{
-		"Foo": []string{"bar"},
+	equals(t, result["Server"][0], "AmazonS3")
+	fooMetaData, ok := result["X-Amz-Meta-Foometadata"]
+	if !ok {
+		t.Fatalf("Expected metadata missing from %v", result)
 	}
-	if !reflect.DeepEqual(result, expect) {
-		t.Fatalf("Expected %v got %v", expect, result)
-	}
+	equals(t, fooMetaData[0], "testmeta")
 }
