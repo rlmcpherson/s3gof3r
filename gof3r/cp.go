@@ -41,6 +41,7 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 	}
 	conf.PartSize = cp.PartSize
 	conf.Md5Check = !cp.NoMd5
+	conf.NTry = cp.NTry
 	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, cp.Debug)
 
 	src, err := func(src string) (io.ReadCloser, error) {
