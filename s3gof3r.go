@@ -18,7 +18,7 @@ import (
 
 const versionParam = "versionId"
 
-var regionMatcher = regexp.MustCompile("s3-([a-z0-9-]+).amazonaws.com")
+var regionMatcher = regexp.MustCompile("s3[-.]([a-z0-9-]+).amazonaws.com([.a-z0-9]*)")
 
 // S3 contains the domain or endpoint of an S3-compatible service and
 // the authentication keys for that service.
