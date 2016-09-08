@@ -29,16 +29,22 @@ type S3 struct {
 
 // Region returns the service region infering it from S3 domain.
 func (s *S3) Region() string {
+	region := os.Getenv("AWS_REGION")
 	switch s.Domain {
 	case "s3.amazonaws.com", "s3-external-1.amazonaws.com":
 		return "us-east-1"
+	case "s3-accelerate.amazonaws.com":
+		if region == "" {
+			panic("can't find endpoint region")
+		}
+		return region
 	default:
 		regions := regionMatcher.FindStringSubmatch(s.Domain)
 		if len(regions) < 2 {
-			if region := os.Getenv("AWS_REGION"); region != "" {
-				return region
+			if region == "" {
+				panic("can't find endpoint region")
 			}
-			panic("can't find endpoint region")
+			return region
 		}
 		return regions[1]
 	}
