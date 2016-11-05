@@ -36,6 +36,7 @@ func (put *putOpts) Execute(args []string) (err error) {
 	conf.PartSize = put.PartSize
 	conf.Md5Check = !put.NoMd5
 	conf.NTry = put.NTry
+	conf.PathStyle = put.PathStyle
 	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, put.Debug)
 
 	if put.Header == nil {

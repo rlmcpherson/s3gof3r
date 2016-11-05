@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/jessevdk/go-flags"
+	flags "github.com/jessevdk/go-flags"
 )
 
 const (
@@ -28,6 +28,7 @@ type DataOpts struct {
 	Concurrency int   `long:"concurrency" short:"c" default:"10" description:"Concurrency of transfers" ini-name:"concurrency"`
 	PartSize    int64 `long:"partsize" short:"s" description:"Initial size of concurrent parts, in bytes" default:"20971520" ini-name:"partsize"`
 	NTry        int   `long:"retries" description:"Number of attempts to try" default:"10" ini-name:"retries"`
+	PathStyle   bool  `long:"path-style" description:"Enable path style calls for S3 compatible endpoints." ini-name:"path-style"`
 }
 
 // UpOpts are Options for uploading common to cp and put commands

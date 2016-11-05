@@ -36,6 +36,7 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 	*conf = *s3gof3r.DefaultConfig
 	s3 := s3gof3r.New(cp.EndPoint, k)
 	conf.Concurrency = cp.Concurrency
+	conf.PathStyle = cp.PathStyle
 	if cp.NoSSL {
 		conf.Scheme = "http"
 	}

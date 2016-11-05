@@ -30,6 +30,7 @@ func (get *getOpts) Execute(args []string) (err error) {
 	s3 := s3gof3r.New(get.EndPoint, k)
 	b := s3.Bucket(get.Bucket)
 	conf.Concurrency = get.Concurrency
+	conf.PathStyle = get.PathStyle
 	if get.NoSSL {
 		conf.Scheme = "http"
 	}
