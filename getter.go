@@ -311,6 +311,35 @@ func (g *getter) Close() error {
 	return nil
 }
 
+func GetInfo(b *Bucket, c *Config, key string, version string) (*http.Response, error) {
+	urlStr, err := b.url(key, c)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < c.NTry; i++ {
+		var req *http.Request
+		req, err := http.NewRequest("HEAD", urlStr.String(), nil)
+
+		if err != nil {
+			return nil, err
+		}
+
+		b.Sign(req)
+
+		resp, err := c.Client.Do(req)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return resp, nil
+	}
+
+	return nil, fmt.Errorf("Could not get info.")
+}
+
 func (g *getter) checkMd5() (err error) {
 	calcMd5 := fmt.Sprintf("%x", g.md5.Sum(nil))
 	md5Path := fmt.Sprint(".md5", g.url.Path, ".md5")

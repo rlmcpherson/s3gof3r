@@ -35,6 +35,15 @@ var flagTests = []flagTest{
 		errors.New("expected argument for flag")},
 	{[]string{"gof3r", "get"},
 		errors.New("required flags")},
+	{[]string{"gof3r", "info"},
+		errors.New("required flags")},
+	{[]string{"gof3r", "info", "-b"},
+		errors.New("expected argument for flag")},
+	{[]string{"gof3r", "info", "-b", "fake-bucket", "-k", "test-key"},
+		errors.New("Access Denied")},
+	{[]string{"gof3r", "info", "-b", "fake-bucket", "-k", "key",
+		"-c", "1", "-s", "1024", "--debug", "--no-ssl", "--no-md5"},
+		errors.New("Access Denied")},
 }
 
 func TestFlags(t *testing.T) {
