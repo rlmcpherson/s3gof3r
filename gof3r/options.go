@@ -37,9 +37,10 @@ type UpOpts struct {
 }
 
 var appOpts struct {
-	Version  func() `long:"version" short:"v" description:"Print version"`
-	Man      func() `long:"manpage" short:"m" description:"Create gof3r.man man page in current directory"`
-	WriteIni bool   `long:"writeini" short:"i" description:"Write .gof3r.ini in current user's home directory" no-ini:"true"`
+	Version        func() `long:"version" short:"v" description:"Print version"`
+	Man            func() `long:"manpage" short:"m" description:"Create gof3r.man man page in current directory"`
+	WriteIni       bool   `long:"writeini" short:"i" description:"Write .gof3r.ini in current user's home directory" no-ini:"true"`
+	NoStatusPrint  bool   `long:"no-status-print" short:"z" description:"Do not print status output (e.g. duration), except for the info command" no-ini:"true"`
 }
 var parser = flags.NewParser(&appOpts, (flags.HelpFlag | flags.PassDoubleDash))
 

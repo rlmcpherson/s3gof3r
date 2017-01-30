@@ -312,6 +312,8 @@ func (g *getter) Close() error {
 }
 
 func GetInfo(b *Bucket, c *Config, key string, version string) (*http.Response, error) {
+
+	key = fmt.Sprintf("?%s=%s&%s=%s", listTypeParam, listTypeValue, prefixParam, key)
 	urlStr, err := b.url(key, c)
 
 	if err != nil {
@@ -320,7 +322,7 @@ func GetInfo(b *Bucket, c *Config, key string, version string) (*http.Response, 
 
 	for i := 0; i < c.NTry; i++ {
 		var req *http.Request
-		req, err := http.NewRequest("HEAD", urlStr.String(), nil)
+		req, err := http.NewRequest("GET", urlStr.String(), nil)
 
 		if err != nil {
 			return nil, err

@@ -17,6 +17,10 @@ import (
 )
 
 const versionParam = "versionId"
+const listTypeParam = "list-type"
+const prefixParam = "prefix"
+
+const listTypeValue = "2"
 
 var regionMatcher = regexp.MustCompile("s3[-.]([a-z0-9-]+).amazonaws.com([.a-z0-9]*)")
 
@@ -154,6 +158,64 @@ func (b *Bucket) url(bPath string, c *Config) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var finalParams = ""
+	var vals url.Values
+
+	// the prefix should not be URL encoded here, so we are treating it independent of the rest of the keys
+	// the implementation is based around the previous implementation (see rationale), so refactoring might be in order
+
+	if purl.Query().Get(prefixParam) != "" {
+		finalParams = fmt.Sprintf("%s=%s", prefixParam, purl.Query().Get(prefixParam))
+		purl.Query().Del(prefixParam)
+	}
+
+	if len(purl.Query()) > 0 {
+		purl.Query()
+		vals = make(url.Values)
+		if v := purl.Query().Get(versionParam); v != "" {
+			vals.Add(versionParam, purl.Query().Get(versionParam))
+		}
+		if v := purl.Query().Get(listTypeParam); v != "" {
+			vals.Add(listTypeParam, purl.Query().Get(listTypeParam))
+		}
+	}
+
+	if vals.Encode() != "" {
+		finalParams = fmt.Sprintf("%s&%s", finalParams, vals.Encode())
+	}
+
+	bPath = strings.Split(bPath, "?")[0] // remove all params from initial path
+
+	// handling for bucket names containing periods / explicit PathStyle addressing
+	// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html for details
+	if strings.Contains(b.Name, ".") || c.PathStyle {
+		return &url.URL{
+			Host:     b.S3.Domain,
+			Scheme:   c.Scheme,
+			Path:     path.Clean(fmt.Sprintf("/%s/%s", b.Name, bPath)),
+			RawQuery: finalParams,
+		}, nil
+	} else {
+		return &url.URL{
+			Scheme:   c.Scheme,
+			Path:     path.Clean(fmt.Sprintf("/%s", bPath)),
+			Host:     path.Clean(fmt.Sprintf("%s.%s", b.Name, b.S3.Domain)),
+			RawQuery: finalParams,
+		}, nil
+	}
+}
+
+// urlForBucketRequest returns a parsed url to the given bucket, used for bucket-specific requests
+// c must not be nil
+func (b *Bucket) urlForBucketRequest(bPath string, c *Config) (*url.URL, error) {
+
+	// parse versionID parameter from path, if included
+	// See https://github.com/rlmcpherson/s3gof3r/issues/84 for rationale
+	purl, err := url.Parse(bPath)
+	if err != nil {
+		return nil, err
+	}
 	var vals url.Values
 	if v := purl.Query().Get(versionParam); v != "" {
 		vals = make(url.Values)
@@ -179,6 +241,8 @@ func (b *Bucket) url(bPath string, c *Config) (*url.URL, error) {
 		}, nil
 	}
 }
+
+
 
 func (b *Bucket) conf() *Config {
 	c := b.Config

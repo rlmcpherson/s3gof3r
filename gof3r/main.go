@@ -81,7 +81,10 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "duration: %v\n", time.Since(start))
+
+	if appOpts.NoStatusPrint == false {
+		fmt.Fprintf(os.Stderr, "duration: %v\n", time.Since(start))
+	}
 }
 
 // getAWSKeys gets the AWS Keys from environment variables or the instance-based metadata on EC2
