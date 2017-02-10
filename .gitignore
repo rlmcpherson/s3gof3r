@@ -1,7 +1,5 @@
 *.mprof
 *.out
 .env
-.idea
-out
-*.iml
 gof3r/gof3r
+
