@@ -187,7 +187,9 @@ func (p *putter) retryPutPart(part *part) {
 		logger.debugPrintf("Error on attempt %d: Retrying part: %d, Error: %s", i, part.PartNumber, err)
 		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 	}
-	p.err = err
+	if p.err == nil {
+		p.err = err
+	}
 }
 
 // uploads a part, checking the etag against the calculated value
