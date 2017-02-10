@@ -195,8 +195,10 @@ func (b *Bucket) Delete(path string) error {
 		return err
 	}
 	// try to delete md5 file
-	if err := b.delete(fmt.Sprintf("/.md5/%s.md5", path)); err != nil {
-		return err
+	if b.Md5Check {
+		if err := b.delete(fmt.Sprintf("/.md5/%s.md5", path)); err != nil {
+			return err
+		}
 	}
 
 	logger.Printf("%s deleted from %s\n", path, b.Name)
