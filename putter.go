@@ -275,12 +275,12 @@ func (p *putter) Close() (err error) {
 	if err != nil {
 		return
 	}
-	// strip part count from end and '"' from front.
-	remoteMd5ofParts := strings.Split(p.ETag, "-")[0]
+	// Trim quotes '"' and strip part count from end.
+	remoteMd5ofParts := strings.Trim(p.ETag, "\"")
+	remoteMd5ofParts = strings.Split(remoteMd5ofParts, "-")[0]
 	if len(remoteMd5ofParts) == 0 {
 		return fmt.Errorf("Nil ETag")
 	}
-	remoteMd5ofParts = remoteMd5ofParts[1:len(remoteMd5ofParts)]
 	if calculatedMd5ofParts != remoteMd5ofParts {
 		if err != nil {
 			return err
