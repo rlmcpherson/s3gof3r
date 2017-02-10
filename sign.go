@@ -119,7 +119,7 @@ func (s *signer) buildCanonicalString() {
 	if uri != "" {
 		uri = "/" + strings.Join(strings.Split(uri, "/")[3:], "/")
 	} else {
-		uri = s.Request.URL.EscapedPath()
+		uri = strings.Replace(s.Request.URL.EscapedPath(), "=", "%3D", -1)
 	}
 	if uri == "" {
 		uri = "/"
