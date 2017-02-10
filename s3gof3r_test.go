@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"syscall"
@@ -37,9 +38,9 @@ func uploadTestFiles() {
 		if tt.rSize >= 0 {
 			wg.Add(1)
 			go func(path string, rSize int64) {
-				err := b.putReader(path, &randSrc{Size: int(rSize)})
+				err := b.putReader(path, nil, &randSrc{Size: int(rSize)})
 				if err != nil {
-					log.Fatal(err)
+					log.Fatalf("Error uploading test file %s: %s", path, err)
 				}
 				wg.Done()
 			}(tt.path, tt.rSize)
@@ -232,20 +233,20 @@ func testBucket() (*tB, error) {
 	bucket := os.Getenv("TEST_BUCKET")
 	if bucket == "" {
 		return nil, errors.New("TEST_BUCKET must be set in environment")
-
 	}
-	s3 := New("", k)
+	domain := os.Getenv("TEST_BUCKET_DOMAIN")
+	s3 := New(domain, k)
 	b := tB{s3.Bucket(bucket)}
 
 	return &b, err
 }
 
-func (b *tB) putReader(path string, r io.Reader) error {
+func (b *tB) putReader(path string, header http.Header, r io.Reader) error {
 	if r == nil {
 		return nil // special handling for nil case
 	}
 
-	w, err := b.PutWriter(path, nil, nil)
+	w, err := b.PutWriter(path, header, nil)
 	if err != nil {
 		return err
 	}
@@ -374,7 +375,7 @@ func TestDelete(t *testing.T) {
 
 	for _, tt := range deleteTests {
 		if tt.exist {
-			err := b.putReader(tt.path, &randSrc{Size: 1})
+			err := b.putReader(tt.path, nil, &randSrc{Size: 1})
 
 			if err != nil {
 				t.Fatal(err)
@@ -396,7 +397,7 @@ func TestGetVersion(t *testing.T) {
 		{"key1", nil},
 	}
 	for _, tt := range versionTests {
-		if err := b.putReader(tt.path, &randSrc{Size: 1}); err != nil {
+		if err := b.putReader(tt.path, nil, &randSrc{Size: 1}); err != nil {
 			t.Fatal(err)
 		}
 		// get version id
@@ -411,7 +412,7 @@ func TestGetVersion(t *testing.T) {
 			t.SkipNow()
 		}
 		// upload again for > 1 version
-		if err := b.putReader(tt.path, &randSrc{Size: 1}); err != nil {
+		if err := b.putReader(tt.path, nil, &randSrc{Size: 1}); err != nil {
 			t.Fatal(err)
 		}
 
@@ -618,4 +619,25 @@ func BenchmarkGet(k *testing.B) {
 		k.SetBytes(n)
 		r.Close()
 	}
+}
+
+func equals(t *testing.T, expect interface{}, actual interface{}) {
+	if !reflect.DeepEqual(expect, actual) {
+		t.Fatalf("Expected %v got %v", expect, actual)
+	}
+}
+
+func TestObjectMetaData(t *testing.T) {
+	path := "metadatatest"
+	err := b.putReader(path, goodHeader(), &randSrc{Size: 0})
+	result, err := ObjectMetaData(path, DefaultConfig, b.Bucket)
+	if err != nil {
+		t.Fatalf("Getting metadata failed with %s", err)
+	}
+	equals(t, result["Server"][0], "AmazonS3")
+	fooMetaData, ok := result["X-Amz-Meta-Foometadata"]
+	if !ok {
+		t.Fatalf("Expected metadata missing from %v", result)
+	}
+	equals(t, fooMetaData[0], "testmeta")
 }
