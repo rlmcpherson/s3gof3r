@@ -252,7 +252,7 @@ func (p *putter) Close() (err error) {
 	body, err := xml.Marshal(p.xml)
 	if err != nil {
 		p.abort()
-		return
+		return err
 	}
 	b := bytes.NewReader(body)
 	v := url.Values{}
@@ -260,7 +260,7 @@ func (p *putter) Close() (err error) {
 	resp, err := p.retryRequest("POST", p.url.String()+"?"+v.Encode(), b, nil)
 	if err != nil {
 		p.abort()
-		return
+		return err
 	}
 	defer checkClose(resp.Body, err)
 	if resp.StatusCode != 200 {
