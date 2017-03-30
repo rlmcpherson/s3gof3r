@@ -386,6 +386,42 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestDeleteMultiple(t *testing.T) {
+
+	var filesToDelete = []struct {
+		path  string
+		exist bool
+	}{
+		{"multi-delete1", true},
+		{"multi-delete 2", false},
+		{"/mutli-delete 2", false},
+	}
+
+	keys := make([]string, 0, len(filesToDelete))
+	for _, tt := range filesToDelete {
+		if tt.exist {
+			err := b.putReader(tt.path, &randSrc{Size: 1})
+
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		keys = append(keys, tt.path)
+	}
+
+	res, err := b.DeleteMultiple(false, keys...)
+	t.Log(res.Errors)
+	if len(res.Errors) != 0 {
+		t.Errorf("mutiple delete included errors")
+	}
+	// Twice because of the md5 files
+	if len(res.Deleted) != 2*len(filesToDelete) {
+		t.Errorf("Wrong number of deleted objects")
+	}
+	t.Log(err)
+	errComp(nil, err, t, keys)
+}
+
 func TestGetVersion(t *testing.T) {
 	t.Parallel()
 

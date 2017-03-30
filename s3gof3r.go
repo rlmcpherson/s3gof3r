@@ -226,6 +226,23 @@ func (b *Bucket) delete(path string) error {
 	return nil
 }
 
+// DeleteMultiple deletes multiple keys in a single request.
+//
+// If 'quiet' is false, the result includes the requested paths and whether they
+// were deleted.
+func (b *Bucket) DeleteMultiple(quiet bool, keys ...string) (DeleteResult, error) {
+	// We also want to try to delete the corresponding md5 files
+	if b.Md5Check {
+		md5Keys := make([]string, 0, len(keys))
+		for _, key := range keys {
+			md5Keys = append(md5Keys, fmt.Sprintf("/.md5/%s.md", key))
+		}
+		keys = append(keys, md5Keys...)
+	}
+
+	return deleteMultiple(b.conf(), b, quiet, keys)
+}
+
 // SetLogger wraps the standard library log package.
 //
 // It allows the internal logging of s3gof3r to be set to a desired output and format.
