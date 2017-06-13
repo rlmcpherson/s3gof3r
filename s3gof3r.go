@@ -226,6 +226,18 @@ func (b *Bucket) delete(path string) error {
 	return nil
 }
 
+// ListObjects returns a list of objects under the given prefixes using parallel
+// requests for each prefix and any continuations.
+//
+// maxKeys indicates how many keys should be returned per request
+func (b *Bucket) ListObjects(prefixes []string, maxKeys int, c *Config) (*ObjectLister, error) {
+	if c == nil {
+		c = b.conf()
+	}
+
+	return newObjectLister(c, b, prefixes, maxKeys)
+}
+
 // SetLogger wraps the standard library log package.
 //
 // It allows the internal logging of s3gof3r to be set to a desired output and format.
