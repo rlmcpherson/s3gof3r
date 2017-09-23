@@ -32,22 +32,6 @@ type mdCreds struct {
 func InstanceKeys() (keys Keys, err error) {
 
 	rolePath := "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
-	return getKeysFromUri(rolePath)
-}
-
-// ECSTaskKeys Requests the AWS keys from the ECS container agent
-// Assumes only one IAM role.
-func ECSTaskKeys() (keys Keys, err error) {
-	taskCredentialsUri := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
-	if taskCredentialsUri == "" {
-		err = fmt.Errorf("task credentials uri not set in environment: AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
-		return
-	}
-	return getKeysFromUri(fmt.Sprintf("http://169.254.170.2%s", taskCredentialsUri))
-}
-
-func getKeysFromUri(rolePath string) (keys Keys, err error) {
-	var creds mdCreds
 
 	// request the role name for the instance
 	// assumes there is only one
@@ -66,8 +50,25 @@ func getKeysFromUri(rolePath string) (keys Keys, err error) {
 		return
 	}
 
+	return getKeysFromUri(rolePath + string(role))
+}
+
+// ECSTaskKeys Requests the AWS keys from the ECS container agent
+// Assumes only one IAM role.
+func ECSTaskKeys() (keys Keys, err error) {
+	taskCredentialsUri := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
+	if taskCredentialsUri == "" {
+		err = fmt.Errorf("task credentials uri not set in environment: AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
+		return
+	}
+	return getKeysFromUri(fmt.Sprintf("http://169.254.170.2%s", taskCredentialsUri))
+}
+
+func getKeysFromUri(credentialPath string) (keys Keys, err error) {
+	var creds mdCreds
+
 	// request the credential metadata for the role
-	resp, err = http.Get(rolePath + string(role))
+	resp, err := http.Get(credentialPath)
 	if err != nil {
 		return
 	}
