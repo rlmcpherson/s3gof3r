@@ -220,7 +220,7 @@ func (p *putter) putPart(part *part) error {
 	}
 	s = s[1 : len(s)-1] // includes quote chars for some reason
 	if part.ETag != s {
-		return fmt.Errorf("Response etag does not match. Remote:%s Calculated:%s", s, p.ETag)
+		return fmt.Errorf("Response etag does not match. Remote:%s Calculated:%s", s, part.ETag)
 	}
 	return nil
 }
