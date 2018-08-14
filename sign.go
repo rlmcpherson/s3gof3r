@@ -127,6 +127,7 @@ func (s *signer) buildCanonicalString() {
 
 	uri = strings.Replace(uri, "@", "%40", -1)
 	uri = strings.Replace(uri, ":", "%3A", -1)
+	uri = strings.Replace(uri, "=", "%3D", -1)
 
 	s.canonicalString = strings.Join([]string{
 		s.Request.Method,
