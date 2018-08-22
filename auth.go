@@ -15,6 +15,7 @@ type Keys struct {
 	AccessKey     string
 	SecretKey     string
 	SecurityToken string
+	Expiration    string
 }
 
 type mdCreds struct {
@@ -89,6 +90,7 @@ func getKeysFromUri(credentialPath string) (keys Keys, err error) {
 		AccessKey:     creds.AccessKeyID,
 		SecretKey:     creds.SecretAccessKey,
 		SecurityToken: creds.Token,
+		Expiration:    creds.Expiration,
 	}
 
 	return
