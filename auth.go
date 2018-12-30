@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"time"
 )
 
@@ -27,11 +28,9 @@ type mdCreds struct {
 	Expiration      string
 }
 
-// InstanceKeys Requests the AWS keys from the instance-based metadata on EC2
-// Assumes only one IAM role.
-func InstanceKeys() (keys Keys, err error) {
-
-	rolePath := "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+// Helper function for getting data
+// from instance metadata server via string of role path
+func getMetaDataKeys(rolePath string) (keys Keys, err error) {
 	var creds mdCreds
 
 	// request the role name for the instance
@@ -76,6 +75,22 @@ func InstanceKeys() (keys Keys, err error) {
 	}
 
 	return
+}
+
+// EcsKeys pulls the credentials inside a running
+// ECS container. The URL requires AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+// environment variable.
+// See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
+func ECSKeys() (keys Keys, err error) {
+	roleRelativeUri := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
+
+	return getMetaDataKeys(path.Join("169.254.170.2", roleRelativeUri))
+}
+
+// InstanceKeys Requests the AWS keys from the instance-based metadata on EC2
+// Assumes only one IAM role.
+func InstanceKeys() (keys Keys, err error) {
+	return getMetaDataKeys("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
 }
 
 // EnvKeys Reads the AWS keys from the environment
