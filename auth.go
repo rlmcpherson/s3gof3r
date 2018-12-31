@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
 	"time"
 )
 
@@ -84,7 +83,7 @@ func getMetaDataKeys(rolePath string) (keys Keys, err error) {
 func ECSKeys() (keys Keys, err error) {
 	roleRelativeUri := os.Getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
 
-	return getMetaDataKeys(path.Join("169.254.170.2", roleRelativeUri))
+	return getMetaDataKeys(fmt.Sprint("http://169.254.170.2/", roleRelativeUri))
 }
 
 // InstanceKeys Requests the AWS keys from the instance-based metadata on EC2
