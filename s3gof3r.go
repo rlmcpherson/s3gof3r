@@ -114,7 +114,7 @@ func (s *S3) Bucket(name string) *Bucket {
 // Callers should call Close on r to ensure that all resources are released.
 //
 // To specify an object version in a versioned bucket, the version ID may be included in the path as a url parameter. See http://docs.aws.amazon.com/AmazonS3/latest/dev/RetrievingObjectVersions.html
-func (b *Bucket) GetReader(ctx context.Context, path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
+func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
 	return b.GetReaderWithContext(context.Background(), path, c)
 }
 
