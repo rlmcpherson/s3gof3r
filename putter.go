@@ -2,6 +2,7 @@ package s3gof3r
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/base64"
@@ -46,6 +47,7 @@ type part struct {
 }
 
 type putter struct {
+	ctx context.Context
 	url url.URL
 	b   *Bucket
 	c   *Config
@@ -77,8 +79,9 @@ type putter struct {
 // See http://docs.amazonwebservices.com/AmazonS3/latest/dev/mpuoverview.html.
 // The initial request returns an UploadId that we use to identify
 // subsequent PUT requests.
-func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err error) {
+func newPutter(ctx context.Context, url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err error) {
 	p = new(putter)
+	p.ctx = ctx
 	p.url = url
 	p.c, p.b = new(Config), new(Bucket)
 	*p.c, *p.b = *c, *b
@@ -198,7 +201,7 @@ func (p *putter) putPart(part *part) error {
 	if _, err := part.r.Seek(0, 0); err != nil { // move back to beginning, if retrying
 		return err
 	}
-	req, err := http.NewRequest("PUT", p.url.String()+"?"+v.Encode(), part.r)
+	req, err := http.NewRequestWithContext(p.ctx, "PUT", p.url.String()+"?"+v.Encode(), part.r)
 	if err != nil {
 		return err
 	}
@@ -346,7 +349,7 @@ func (p *putter) putMd5() (err error) {
 	}
 	logger.debugPrintln("md5: ", calcMd5)
 	logger.debugPrintln("md5Path: ", md5Path)
-	r, err := http.NewRequest("PUT", md5Url.String(), md5Reader)
+	r, err := http.NewRequestWithContext(p.ctx, "PUT", md5Url.String(), md5Reader)
 	if err != nil {
 		return
 	}
@@ -365,7 +368,7 @@ func (p *putter) putMd5() (err error) {
 func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.Header) (resp *http.Response, err error) {
 	for i := 0; i < p.c.NTry; i++ {
 		var req *http.Request
-		req, err = http.NewRequest(method, urlStr, body)
+		req, err = http.NewRequestWithContext(p.ctx, method, urlStr, body)
 		if err != nil {
 			return
 		}
@@ -382,6 +385,8 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		p.b.Sign(req)
 		resp, err = p.c.Client.Do(req)
 		if err == nil {
+			return
+		} else if err.(*url.Error).Timeout() {
 			return
 		}
 		logger.debugPrintln(err)
