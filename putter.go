@@ -201,7 +201,7 @@ func (p *putter) putPart(part *part) error {
 	if _, err := part.r.Seek(0, 0); err != nil { // move back to beginning, if retrying
 		return err
 	}
-	req, err := http.NewRequest("PUT", p.url.String()+"?"+v.Encode(), part.r)
+	req, err := http.NewRequestWithContext(p.ctx, "PUT", p.url.String()+"?"+v.Encode(), part.r)
 	if err != nil {
 		return err
 	}
@@ -349,7 +349,7 @@ func (p *putter) putMd5() (err error) {
 	}
 	logger.debugPrintln("md5: ", calcMd5)
 	logger.debugPrintln("md5Path: ", md5Path)
-	r, err := http.NewRequest("PUT", md5Url.String(), md5Reader)
+	r, err := http.NewRequestWithContext(p.ctx, "PUT", md5Url.String(), md5Reader)
 	if err != nil {
 		return
 	}
@@ -385,6 +385,8 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		p.b.Sign(req)
 		resp, err = p.c.Client.Do(req)
 		if err == nil {
+			return
+		} else if err.(*url.Error).Timeout() {
 			return
 		}
 		logger.debugPrintln(err)

@@ -105,15 +105,7 @@ func (s *S3) Bucket(name string) *Bucket {
 	}
 }
 
-// GetReader provides a reader and downloads data using parallel ranged get requests.
-// Data from the requests are ordered and written sequentially.
-//
-// Data integrity is verified via the option specified in c.
-// Header data from the downloaded object is also returned, useful for reading object metadata.
-// DefaultConfig is used if c is nil
-// Callers should call Close on r to ensure that all resources are released.
-//
-// To specify an object version in a versioned bucket, the version ID may be included in the path as a url parameter. See http://docs.aws.amazon.com/AmazonS3/latest/dev/RetrievingObjectVersions.html
+// GetReader wraps GetReaderWithContext using the background context.
 func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
 	return b.GetReaderWithContext(context.Background(), path, c)
 }
@@ -141,12 +133,7 @@ func (b *Bucket) GetReaderWithContext(ctx context.Context, path string, c *Confi
 	return newGetter(ctx, *u, c, b)
 }
 
-// PutWriter provides a writer to upload data as multipart upload requests.
-//
-// Each header in h is added to the HTTP request header. This is useful for specifying
-// options such as server-side encryption in metadata as well as custom user metadata.
-// DefaultConfig is used if c is nil.
-// Callers should call Close on w to ensure that all resources are released.
+// PutWriter wraps PutWriterWithContext using the background context.
 func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteCloser, err error) {
 	return b.PutWriterWithContext(context.Background(), path, h, c)
 }
@@ -212,15 +199,20 @@ func (b *Bucket) conf() *Config {
 	return c
 }
 
+// Delete wraps DeleteWithContext using the background context.
+func (b *Bucket) Delete(path string) error {
+	return b.DeleteWithContext(context.Background(), path)
+}
+
 // Delete deletes the key at path
 // If the path does not exist, Delete returns nil (no error).
-func (b *Bucket) Delete(path string) error {
-	if err := b.delete(path); err != nil {
+func (b *Bucket) DeleteWithContext(ctx context.Context, path string) error {
+	if err := b.delete(ctx, path); err != nil {
 		return err
 	}
 	// try to delete md5 file
 	if b.Md5Check {
-		if err := b.delete(fmt.Sprintf("/.md5/%s.md5", path)); err != nil {
+		if err := b.delete(ctx, fmt.Sprintf("/.md5/%s.md5", path)); err != nil {
 			return err
 		}
 	}
@@ -229,17 +221,18 @@ func (b *Bucket) Delete(path string) error {
 	return nil
 }
 
-func (b *Bucket) delete(path string) error {
+func (b *Bucket) delete(ctx context.Context, path string) error {
 	u, err := b.url(path, b.conf())
 	if err != nil {
 		return err
 	}
-	r := http.Request{
+	r := &http.Request{
 		Method: "DELETE",
 		URL:    u,
 	}
-	b.Sign(&r)
-	resp, err := b.conf().Do(&r)
+	r = r.WithContext(ctx)
+	b.Sign(r)
+	resp, err := b.conf().Do(r)
 	if err != nil {
 		return err
 	}

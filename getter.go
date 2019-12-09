@@ -117,6 +117,8 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 		resp, err = g.c.Client.Do(req)
 		if err == nil {
 			return
+		} else if err.(*url.Error).Timeout() {
+			return
 		}
 		logger.debugPrintln(err)
 		if body != nil {
@@ -176,7 +178,7 @@ func (g *getter) retryGetChunk(c *chunk) {
 
 func (g *getter) getChunk(c *chunk) error {
 	// ensure buffer is empty
-	r, err := http.NewRequest("GET", g.url.String(), nil)
+	r, err := http.NewRequestWithContext(g.ctx, "GET", g.url.String(), nil)
 	if err != nil {
 		return err
 	}
