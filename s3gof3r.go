@@ -2,6 +2,7 @@
 package s3gof3r
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -113,7 +114,20 @@ func (s *S3) Bucket(name string) *Bucket {
 // Callers should call Close on r to ensure that all resources are released.
 //
 // To specify an object version in a versioned bucket, the version ID may be included in the path as a url parameter. See http://docs.aws.amazon.com/AmazonS3/latest/dev/RetrievingObjectVersions.html
-func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
+func (b *Bucket) GetReader(ctx context.Context, path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
+	return b.GetReaderWithContext(context.Background(), path, c)
+}
+
+// GetReader provides a reader and downloads data using parallel ranged get requests.
+// Data from the requests are ordered and written sequentially.
+//
+// Data integrity is verified via the option specified in c.
+// Header data from the downloaded object is also returned, useful for reading object metadata.
+// DefaultConfig is used if c is nil
+// Callers should call Close on r to ensure that all resources are released.
+//
+// To specify an object version in a versioned bucket, the version ID may be included in the path as a url parameter. See http://docs.aws.amazon.com/AmazonS3/latest/dev/RetrievingObjectVersions.html
+func (b *Bucket) GetReaderWithContext(ctx context.Context, path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
 	if path == "" {
 		return nil, nil, errors.New("empty path requested")
 	}
@@ -124,7 +138,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 	if err != nil {
 		return nil, nil, err
 	}
-	return newGetter(*u, c, b)
+	return newGetter(ctx, *u, c, b)
 }
 
 // PutWriter provides a writer to upload data as multipart upload requests.
@@ -134,6 +148,16 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 // DefaultConfig is used if c is nil.
 // Callers should call Close on w to ensure that all resources are released.
 func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteCloser, err error) {
+	return b.PutWriterWithContext(context.Background(), path, h, c)
+}
+
+// PutWriter provides a writer to upload data as multipart upload requests.
+//
+// Each header in h is added to the HTTP request header. This is useful for specifying
+// options such as server-side encryption in metadata as well as custom user metadata.
+// DefaultConfig is used if c is nil.
+// Callers should call Close on w to ensure that all resources are released.
+func (b *Bucket) PutWriterWithContext(ctx context.Context, path string, h http.Header, c *Config) (w io.WriteCloser, err error) {
 	if c == nil {
 		c = b.conf()
 	}
@@ -142,7 +166,7 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 		return nil, err
 	}
 
-	return newPutter(*u, h, c, b)
+	return newPutter(ctx, *u, h, c, b)
 }
 
 // url returns a parsed url to the given path. c must not be nil
