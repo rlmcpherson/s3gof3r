@@ -1,6 +1,7 @@
 package s3gof3r
 
 import (
+	"context"
 	"crypto/md5"
 	"fmt"
 	"hash"
@@ -17,6 +18,7 @@ import (
 const qWaitMax = 2
 
 type getter struct {
+	ctx   context.Context
 	url   url.URL
 	b     *Bucket
 	bufsz int64
@@ -52,8 +54,9 @@ type chunk struct {
 	b      []byte
 }
 
-func newGetter(getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header, error) {
+func newGetter(ctx context.Context, getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header, error) {
 	g := new(getter)
+	g.ctx = ctx
 	g.url = getURL
 	g.c, g.b = new(Config), new(Bucket)
 	*g.c, *g.b = *c, *b
@@ -101,7 +104,7 @@ func newGetter(getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header
 func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *http.Response, err error) {
 	for i := 0; i < g.c.NTry; i++ {
 		var req *http.Request
-		req, err = http.NewRequest(method, urlStr, body)
+		req, err = http.NewRequestWithContext(g.ctx, method, urlStr, body)
 		if err != nil {
 			return
 		}
@@ -113,6 +116,8 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 		g.b.Sign(req)
 		resp, err = g.c.Client.Do(req)
 		if err == nil {
+			return
+		} else if err.(*url.Error).Timeout() {
 			return
 		}
 		logger.debugPrintln(err)
@@ -173,7 +178,7 @@ func (g *getter) retryGetChunk(c *chunk) {
 
 func (g *getter) getChunk(c *chunk) error {
 	// ensure buffer is empty
-	r, err := http.NewRequest("GET", g.url.String(), nil)
+	r, err := http.NewRequestWithContext(g.ctx, "GET", g.url.String(), nil)
 	if err != nil {
 		return err
 	}

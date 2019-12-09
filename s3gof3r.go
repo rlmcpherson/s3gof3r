@@ -2,6 +2,7 @@
 package s3gof3r
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -104,6 +105,11 @@ func (s *S3) Bucket(name string) *Bucket {
 	}
 }
 
+// GetReader wraps GetReaderWithContext using the background context.
+func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
+	return b.GetReaderWithContext(context.Background(), path, c)
+}
+
 // GetReader provides a reader and downloads data using parallel ranged get requests.
 // Data from the requests are ordered and written sequentially.
 //
@@ -113,7 +119,7 @@ func (s *S3) Bucket(name string) *Bucket {
 // Callers should call Close on r to ensure that all resources are released.
 //
 // To specify an object version in a versioned bucket, the version ID may be included in the path as a url parameter. See http://docs.aws.amazon.com/AmazonS3/latest/dev/RetrievingObjectVersions.html
-func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
+func (b *Bucket) GetReaderWithContext(ctx context.Context, path string, c *Config) (r io.ReadCloser, h http.Header, err error) {
 	if path == "" {
 		return nil, nil, errors.New("empty path requested")
 	}
@@ -124,7 +130,12 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 	if err != nil {
 		return nil, nil, err
 	}
-	return newGetter(*u, c, b)
+	return newGetter(ctx, *u, c, b)
+}
+
+// PutWriter wraps PutWriterWithContext using the background context.
+func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteCloser, err error) {
+	return b.PutWriterWithContext(context.Background(), path, h, c)
 }
 
 // PutWriter provides a writer to upload data as multipart upload requests.
@@ -133,7 +144,7 @@ func (b *Bucket) GetReader(path string, c *Config) (r io.ReadCloser, h http.Head
 // options such as server-side encryption in metadata as well as custom user metadata.
 // DefaultConfig is used if c is nil.
 // Callers should call Close on w to ensure that all resources are released.
-func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteCloser, err error) {
+func (b *Bucket) PutWriterWithContext(ctx context.Context, path string, h http.Header, c *Config) (w io.WriteCloser, err error) {
 	if c == nil {
 		c = b.conf()
 	}
@@ -142,7 +153,7 @@ func (b *Bucket) PutWriter(path string, h http.Header, c *Config) (w io.WriteClo
 		return nil, err
 	}
 
-	return newPutter(*u, h, c, b)
+	return newPutter(ctx, *u, h, c, b)
 }
 
 // url returns a parsed url to the given path. c must not be nil
@@ -188,15 +199,20 @@ func (b *Bucket) conf() *Config {
 	return c
 }
 
+// Delete wraps DeleteWithContext using the background context.
+func (b *Bucket) Delete(path string) error {
+	return b.DeleteWithContext(context.Background(), path)
+}
+
 // Delete deletes the key at path
 // If the path does not exist, Delete returns nil (no error).
-func (b *Bucket) Delete(path string) error {
-	if err := b.delete(path); err != nil {
+func (b *Bucket) DeleteWithContext(ctx context.Context, path string) error {
+	if err := b.delete(ctx, path); err != nil {
 		return err
 	}
 	// try to delete md5 file
 	if b.Md5Check {
-		if err := b.delete(fmt.Sprintf("/.md5/%s.md5", path)); err != nil {
+		if err := b.delete(ctx, fmt.Sprintf("/.md5/%s.md5", path)); err != nil {
 			return err
 		}
 	}
@@ -205,17 +221,18 @@ func (b *Bucket) Delete(path string) error {
 	return nil
 }
 
-func (b *Bucket) delete(path string) error {
+func (b *Bucket) delete(ctx context.Context, path string) error {
 	u, err := b.url(path, b.conf())
 	if err != nil {
 		return err
 	}
-	r := http.Request{
+	r := &http.Request{
 		Method: "DELETE",
 		URL:    u,
 	}
-	b.Sign(&r)
-	resp, err := b.conf().Do(&r)
+	r = r.WithContext(ctx)
+	b.Sign(r)
+	resp, err := b.conf().Do(r)
 	if err != nil {
 		return err
 	}
