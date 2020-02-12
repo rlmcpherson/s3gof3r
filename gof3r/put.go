@@ -33,6 +33,10 @@ func (put *putOpts) Execute(args []string) (err error) {
 	if put.NoSSL {
 		conf.Scheme = "http"
 	}
+	if put.PathStyle {
+		conf.PathStyle = put.PathStyle
+	}
+
 	conf.PartSize = put.PartSize
 	conf.Md5Check = !put.NoMd5
 	conf.NTry = put.NTry

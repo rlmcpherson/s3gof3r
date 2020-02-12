@@ -33,6 +33,10 @@ func (get *getOpts) Execute(args []string) (err error) {
 	if get.NoSSL {
 		conf.Scheme = "http"
 	}
+	if get.PathStyle {
+		conf.PathStyle = get.PathStyle
+	}
+
 	conf.PartSize = get.PartSize
 	conf.Md5Check = !get.NoMd5
 	conf.NTry = get.NTry

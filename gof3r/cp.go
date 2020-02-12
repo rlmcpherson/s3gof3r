@@ -39,6 +39,10 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 	if cp.NoSSL {
 		conf.Scheme = "http"
 	}
+	if cp.PathStyle {
+		conf.PathStyle = cp.PathStyle
+	}
+
 	conf.PartSize = cp.PartSize
 	conf.Md5Check = !cp.NoMd5
 	conf.NTry = cp.NTry
