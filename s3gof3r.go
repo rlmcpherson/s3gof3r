@@ -91,6 +91,13 @@ func New(domain string, keys Keys) *S3 {
 	if domain == "" {
 		domain = DefaultDomain
 	}
+	
+	if domain == DefaultDomain {
+		if envDomain := os.Getenv("AWS_S3_ENDPOINT"); envDomain != "" {
+			domain = envDomain
+		}
+	}
+	
 	return &S3{domain, keys}
 }
 
