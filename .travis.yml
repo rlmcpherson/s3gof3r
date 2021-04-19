@@ -1,3 +1,4 @@
 language: go
 go: 
-  - latest
+  - 1.10.1
+  - tip
