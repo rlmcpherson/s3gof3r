@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rlmcpherson/s3gof3r"
+	"github.com/mayongze/s3gof3r"
 )
 
 type CpArg struct {
