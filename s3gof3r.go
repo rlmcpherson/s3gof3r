@@ -18,7 +18,7 @@ import (
 
 const versionParam = "versionId"
 
-var regionMatcher = regexp.MustCompile("s3[-.]([a-z0-9-]+).amazonaws.com([.a-z0-9]*)")
+var regionMatcher = regexp.MustCompile(`s3[-.]([a-z0-9-]+).[\w-]+.com([.a-z0-9]*)`)
 
 // S3 contains the domain or endpoint of an S3-compatible service and
 // the authentication keys for that service.
@@ -91,6 +91,13 @@ func New(domain string, keys Keys) *S3 {
 	if domain == "" {
 		domain = DefaultDomain
 	}
+
+	if domain == DefaultDomain {
+		if envDomain := os.Getenv("AWS_S3_ENDPOINT"); envDomain != "" {
+			domain = envDomain
+		}
+	}
+
 	return &S3{domain, keys}
 }
 

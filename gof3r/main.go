@@ -38,7 +38,7 @@ import (
 	"time"
 
 	"github.com/jessevdk/go-flags"
-	"github.com/rlmcpherson/s3gof3r"
+	"github.com/mayongze/s3gof3r"
 )
 
 const (
